@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProofChain Metadata",
+  "type": "object",
+  "properties": {
+    "creator": { "type": "string" },
+    "sha256": { "type": "string" },
+    "phash": { "type": "string" },
+    "ipfsCid": { "type": "string" },
+    "model": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "signature": { "type": "string" }
+  },
+  "required": ["creator", "sha256", "ipfsCid", "timestamp", "signature"]
+}

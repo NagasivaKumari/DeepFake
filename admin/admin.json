@@ -1,0 +1,7 @@
+{
+  "admin": {
+    "address": "0xAbCdef1234567890",
+    "roles": ["admin"],
+    "email": "admin@example.com"
+  }
+}
