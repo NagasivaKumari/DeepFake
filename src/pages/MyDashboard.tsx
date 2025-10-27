@@ -76,11 +76,21 @@ export default function MyDashboard() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">SHA-256</span>
-              <code className="text-xs">{media.sha256_hash.substring(0, 16)}...</code>
+              <code className="text-xs">{media.sha256_hash ? media.sha256_hash.substring(0, 16) + '...' : 'Not generated'}</code>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">IPFS CID</span>
-              <code className="text-xs">{media.ipfs_cid}</code>
+              <span className="text-gray-600">Perceptual Hash</span>
+              <code className="text-xs">{media.perceptual_hash ? media.perceptual_hash : 'Not generated'}</code>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Image Link</span>
+              {media.file_url ? (
+                <a href={media.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
+                  View Image
+                </a>
+              ) : (
+                <span className="text-xs text-gray-400">Not available</span>
+              )}
             </div>
           </div>
 

@@ -269,6 +269,7 @@ export default function RegisterMedia() {
         perceptual_hash = null;
       }
 
+
       // Always upload to Pinata before registration
       const uploadResp = await fetch('/media/upload', {
         method: 'POST',
@@ -283,6 +284,10 @@ export default function RegisterMedia() {
         alert('IPFS upload failed');
         return;
       }
+
+      // Debug: print hash values before sending
+      console.log('SHA-256 Hash:', sha256_hash);
+      console.log('Perceptual Hash:', perceptual_hash);
 
       const metadata = {
         file_url: uploadData.file_url,
@@ -299,8 +304,42 @@ export default function RegisterMedia() {
       // Ensure wallet connected
       if (!isConnected) await connect();
 
+      // --- Sign metadata with wallet ---
+
+      // Import LuteConnect directly for signing
+      const { default: LuteConnect } = await import('lute-connect');
+      const client = new LuteConnect(document.title || "YourAppName");
+      // Use a canonical string for signing (sorted keys, no undefined)
+      const canonicalString = JSON.stringify(Object.keys(metadata).sort().reduce((obj, key) => { obj[key] = metadata[key] ?? null; return obj; }, {}));
+      // --- Wallet signData is currently broken: any call to signData fails with 'Failed decoding' or closes the popup ---
+      // See README for troubleshooting steps. If you fix this, restore the code below and remove this comment.
+      // let signatureBase64 = null;
+      // try {
+      //   const canonicalString = JSON.stringify(Object.keys(metadata).sort().reduce((obj, key) => { obj[key] = metadata[key] ?? null; return obj; }, {}));
+      //   let signResp;
+      //   try {
+      //     signResp = await client.signData(canonicalString, { scope: 1, encoding: "utf8" });
+      //   } catch (err) {
+      //     signResp = await client.signData(canonicalString, { scope: 1, encoding: "utf-8" });
+      //   }
+      //   signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signResp.signature)));
+      // } catch (err) {
+      //   console.error("LuteConnect signData error", err, { canonicalString });
+      //   alert("Wallet signature failed: " + err);
+      //   return;
+      // }
+      // For now, skip signature fields to avoid error popup
+      const signatureBase64 = null;
+
+      // Add required fields
+      const registrationPayload = {
+        ...metadata,
+        signer_address: address,
+        metadata_signature: signatureBase64,
+      };
+
       // Register media on blockchain
-      const registeredMedia = await registerMediaMutation.mutateAsync(metadata);
+      const registeredMedia = await registerMediaMutation.mutateAsync(registrationPayload);
 
       setRegisteredData({ ...registeredMedia, file_url: uploadData.file_url });
       setRegistrationComplete(true);

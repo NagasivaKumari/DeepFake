@@ -150,5 +150,4 @@ Backend app-call helper
 
 Use backend/algorand_app_utils.py to prepare unsigned application-call transactions (client signs) and submit signed app-call txns. The backend endpoint will return the unsigned app-call JSON for client-side signing.
 
-
 PPT : https://docs.google.com/presentation/d/1GezNeJRjyPQkZp4Oi4cJe4HUCXP1umcn/edit?usp=drive_link&ouid=116725791494411323852&rtpof=true&sd=true

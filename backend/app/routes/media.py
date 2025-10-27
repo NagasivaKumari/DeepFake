@@ -1,10 +1,11 @@
+
 import sys
+from ..config import settings
 print("[STARTUP] settings.PINATA_API_KEY:", getattr(settings, 'PINATA_API_KEY', None), file=sys.stderr)
 print("[STARTUP] settings.PINATA_API_SECRET:", getattr(settings, 'PINATA_API_SECRET', None), file=sys.stderr)
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi import Depends
 import requests
-from ..config import settings
 from ..schemas import GenerateRequest, UploadResponse, RegisterRequest, VerifySignatureRequest
 from typing import Dict
 
@@ -198,9 +199,57 @@ def register_media(payload: RegisterRequest):
     else:
         raise HTTPException(status_code=500, detail="No signature verification method available (install Lute SDK or eth-account)")
 
-    # For on-chain registration we will create an Algorand transaction note or forward to registry as configured.
-    # The registration endpoint returns success: for now echo the payload (backend will not forward to external registry)
-    # Persist the registration to file for GET /api/registrations
+
+    # --- Algorand transaction logic: send 1 ALGO from server wallet to user wallet ---
+    algo_tx = None
+    explorer_url = None
+    try:
+        from algosdk import account, mnemonic, transaction
+        from algosdk.v2client import algod
+        # Load server mnemonic and user wallet address
+        server_mnemonic = settings.LUTE_MNEMONIC.replace('"', '').strip()
+        user_address = getattr(payload, 'signer_address', None)
+        if not server_mnemonic or not user_address:
+            raise Exception("Missing server mnemonic or user wallet address")
+
+        # Setup Algod client
+        algod_address = settings.ALGOD_ADDRESS
+        algod_token = settings.ALGOD_TOKEN
+        algod_client = algod.AlgodClient(algod_token, algod_address)
+
+        # Get server account
+        sender_private_key = mnemonic.to_private_key(server_mnemonic)
+        sender_address = mnemonic.to_public_key(server_mnemonic)
+
+        # Get suggested params
+        params = algod_client.suggested_params()
+
+        # Amount to send (1 Algo = 1,000,000 microalgos)
+        amount = 1000000
+
+        # Create transaction
+        unsigned_txn = transaction.PaymentTxn(
+            sender_address,
+            params,
+            user_address,
+            amount,
+            None,
+            "Media registration fee"
+        )
+
+        # Sign transaction
+        signed_txn = unsigned_txn.sign(sender_private_key)
+
+        # Send transaction
+        txid = algod_client.send_transaction(signed_txn)
+        algo_tx = txid
+        explorer_url = f"https://testnet.algoexplorer.io/tx/{txid}"
+    except Exception as e:
+        print(f"Algorand transaction error: {e}")
+        algo_tx = None
+        explorer_url = None
+
+    # --- Save registration data ---
     from pathlib import Path
     import json
     DATA_PATH = Path(__file__).resolve().parents[1] / "data"
@@ -215,42 +264,15 @@ def register_media(payload: RegisterRequest):
         try:
             kyc_records = json.loads(KYC_FILE.read_text())
             for kyc in kyc_records:
-                if kyc.get("wallet_address", "").lower() == payload.signer_address.lower():
+                if kyc.get("wallet_address", "").lower() == user_address.lower():
                     kyc_email = kyc.get("email")
                     kyc_phone = kyc.get("phone")
                     break
         except Exception:
             pass
 
-
-    # Ensure ipfs_cid and file_url are present in registration
-    # If not present in payload, try to fetch from last upload
-    ipfs_cid = payload.ipfs_cid if hasattr(payload, 'ipfs_cid') and payload.ipfs_cid else None
-    file_url = payload.file_url if hasattr(payload, 'file_url') and payload.file_url else None
-    # If missing, try to fetch from previous uploads (not implemented here)
-
-    # Algorand transaction logic (finalized)
-    algo_tx = None
-    try:
-        # If transaction is already sent via Lute wallet, get txid from payload or environment
-        if hasattr(payload, 'algo_tx') and payload.algo_tx:
-            algo_tx = payload.algo_tx
-        # Optionally, extract from Lute SDK response if available
-        # If you have a transaction response object, set algo_tx = response['txid']
-    except Exception as e:
-        print(f"Algorand transaction error: {e}")
-        algo_tx = None
-
-    # Add explorer link to registration data
-    explorer_url = f"https://testnet.algoexplorer.io/tx/{algo_tx}" if algo_tx else None
-
-    reg_data = payload.dict()
-    reg_data["email"] = kyc_email
-    reg_data["phone"] = kyc_phone
-    reg_data["ipfs_cid"] = ipfs_cid
-    reg_data["file_url"] = file_url
-    reg_data["algo_tx"] = algo_tx
-    reg_data["algo_explorer_url"] = explorer_url
+    ipfs_cid = getattr(payload, 'ipfs_cid', None)
+    file_url = getattr(payload, 'file_url', None)
 
     reg_data = payload.dict()
     reg_data["email"] = kyc_email

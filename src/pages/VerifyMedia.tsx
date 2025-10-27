@@ -37,67 +37,109 @@ export default function VerifyMedia() {
     initialData: [],
   });
 
-  const generateHash = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(64, "0").substring(0, 64);
+
+  // Real SHA-256 hash function
+  const calculateSha256 = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hexHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hexHash;
+  };
+
+  // Perceptual hash (average hash)
+  const getPerceptualHash = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 8;
+        canvas.height = 8;
+        ctx.drawImage(img, 0, 0, 8, 8);
+        const pixels = ctx.getImageData(0, 0, 8, 8).data;
+        let total = 0;
+        let grays = [];
+        for (let i = 0; i < pixels.length; i += 4) {
+          const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+          grays.push(gray);
+          total += gray;
+        }
+        const avg = total / 64;
+        let hash = '';
+        for (let i = 0; i < grays.length; i++) {
+          hash += grays[i] > avg ? '1' : '0';
+        }
+        resolve(hash);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   const handleFileVerification = async () => {
     if (!file) return;
     setIsVerifying(true);
-
-    setTimeout(() => {
-      const fileHash = generateHash(file.name + file.size);
+    try {
+      const sha256_hash = await calculateSha256(file);
+      const perceptual_hash = await getPerceptualHash(file);
+      // Find match by SHA-256
       const matchingMedia = (registeredMedia as any[]).find(
-        (m: any) => m.sha256_hash?.substring(0, 16) === fileHash.substring(0, 16)
+        (m: any) => m.sha256_hash && m.sha256_hash === sha256_hash
       );
-
+      let pHashMatch = false;
+      let pHashSimilarity = 0;
+      if (matchingMedia && matchingMedia.perceptual_hash) {
+        // Compare perceptual hash (Hamming distance)
+        const a = perceptual_hash;
+        const b = matchingMedia.perceptual_hash;
+        let dist = 0;
+        for (let i = 0; i < Math.min(a.length, b.length); i++) {
+          if (a[i] !== b[i]) dist++;
+        }
+        pHashSimilarity = Math.round(100 * (1 - dist / a.length));
+        pHashMatch = pHashSimilarity > 90;
+      }
       if (matchingMedia) {
         setVerificationResult({
           status: "verified",
           match: matchingMedia,
           sha256Match: true,
-          pHashMatch: true,
-          pHashSimilarity: 98,
+          pHashMatch,
+          pHashSimilarity,
           signatureValid: true,
           revoked: matchingMedia.status === "revoked",
         });
       } else {
         setVerificationResult({ status: "not_found", sha256Match: false, pHashMatch: false });
       }
-
-      setIsVerifying(false);
-    }, 1500);
+    } catch (e) {
+      setVerificationResult({ status: "not_found", sha256Match: false, pHashMatch: false });
+    }
+    setIsVerifying(false);
   };
 
   const handleIpfsVerification = async () => {
     if (!ipfsUrl) return;
     setIsVerifying(true);
-
-    setTimeout(() => {
-      const matchingMedia = (registeredMedia as any[]).find((m: any) => ipfsUrl.includes(m.ipfs_cid));
-
-      if (matchingMedia) {
-        setVerificationResult({
-          status: "verified",
-          match: matchingMedia,
-          sha256Match: true,
-          pHashMatch: true,
-          pHashSimilarity: 100,
-          signatureValid: true,
-          revoked: matchingMedia.status === "revoked",
-        });
-      } else {
-        setVerificationResult({ status: "not_found", sha256Match: false, pHashMatch: false });
-      }
-
-      setIsVerifying(false);
-    }, 1500);
+    // Try to match by file_url or ipfs_cid
+    const matchingMedia = (registeredMedia as any[]).find(
+      (m: any) => m.file_url === ipfsUrl || (m.ipfs_cid && ipfsUrl.includes(m.ipfs_cid))
+    );
+    if (matchingMedia) {
+      setVerificationResult({
+        status: "verified",
+        match: matchingMedia,
+        sha256Match: true,
+        pHashMatch: true,
+        pHashSimilarity: 100,
+        signatureValid: true,
+        revoked: matchingMedia.status === "revoked",
+      });
+    } else {
+      setVerificationResult({ status: "not_found", sha256Match: false, pHashMatch: false });
+    }
+    setIsVerifying(false);
   };
 
   const getStatusIcon = () => {
