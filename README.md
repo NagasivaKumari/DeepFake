@@ -33,6 +33,7 @@ Usage
 - **AI Generation**: Pollinations.ai
 - 
 ## Project Structure
+'''
 DeepFake/
 ├── admin/
 │   ├── admin.json
@@ -147,6 +148,7 @@ DeepFake/
 ├── tsconfig.json
 ├── tsconfig.node.json
 └── vite.config.ts
+'''
 
 Short summary:
 -Hashing: SHA-256 (exact) + pHash (perceptual)
