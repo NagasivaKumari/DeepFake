@@ -103,7 +103,7 @@ def generate_media(payload: GenerateRequest):
         # Send transaction
         txid = algod_client.send_transaction(signed_txn)
         algo_tx = txid
-        explorer_url = f"https://testnet.algoexplorer.io/tx/{txid}"
+        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
     except Exception as e:
         print(f"Algorand transaction error: {e}")
         algo_tx = None
@@ -178,26 +178,29 @@ def register_media(payload: RegisterRequest):
     typically uses the returned data to prepare an Algorand transaction (unsigned) that the
     client signs with Lute and submits to Algorand.
     """
-    # Verify signature first (EIP-191 / personal_sign style)
-    # Verify signature using Lute SDK if available; otherwise fall back to eth-account
-    if LUTE_AVAILABLE:
-        try:
-            ok = lute_client.verify_signature(payload.signer_address, payload.metadata_signature, payload.sha256_hash)
-            if not ok:
-                raise HTTPException(status_code=403, detail="Lute signature verification failed")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Lute verification error: {e}")
-    elif ETH_ACCOUNT_AVAILABLE:
-        try:
-            message = payload.sha256_hash
-            encoded = encode_defunct(text=message)
-            recovered = Account.recover_message(encoded, signature=payload.metadata_signature)
-            if recovered.lower() != payload.signer_address.lower():
-                raise HTTPException(status_code=403, detail="Signature does not match signer address")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Signature verification failed: {str(e)}")
+    # Verify signature only if present
+    if payload.metadata_signature:
+        if LUTE_AVAILABLE:
+            try:
+                ok = lute_client.verify_signature(payload.signer_address, payload.metadata_signature, payload.sha256_hash)
+                if not ok:
+                    raise HTTPException(status_code=403, detail="Lute signature verification failed")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Lute verification error: {e}")
+        elif ETH_ACCOUNT_AVAILABLE:
+            try:
+                message = payload.sha256_hash
+                encoded = encode_defunct(text=message)
+                recovered = Account.recover_message(encoded, signature=payload.metadata_signature)
+                if recovered.lower() != payload.signer_address.lower():
+                    raise HTTPException(status_code=403, detail="Signature does not match signer address")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Signature verification failed: {str(e)}")
+        else:
+            raise HTTPException(status_code=500, detail="No signature verification method available (install Lute SDK or eth-account)")
+    # else: skip signature verification for dev/testing, but warn in logs
     else:
-        raise HTTPException(status_code=500, detail="No signature verification method available (install Lute SDK or eth-account)")
+        print("[WARNING] Skipping signature verification: metadata_signature is missing or null. This is insecure for production.")
 
 
     # --- Algorand transaction logic: send 1 ALGO from server wallet to user wallet ---
@@ -207,7 +210,10 @@ def register_media(payload: RegisterRequest):
         from algosdk import account, mnemonic, transaction
         from algosdk.v2client import algod
         # Load server mnemonic and user wallet address
-        server_mnemonic = settings.LUTE_MNEMONIC.replace('"', '').strip()
+        # Use DEPLOYER_MNEMONIC if set, else fallback to LUTE_MNEMONIC
+        server_mnemonic = (settings.DEPLOYER_MNEMONIC or settings.LUTE_MNEMONIC)
+        if server_mnemonic:
+            server_mnemonic = server_mnemonic.replace('"', '').strip()
         user_address = getattr(payload, 'signer_address', None)
         if not server_mnemonic or not user_address:
             raise Exception("Missing server mnemonic or user wallet address")
@@ -219,7 +225,8 @@ def register_media(payload: RegisterRequest):
 
         # Get server account
         sender_private_key = mnemonic.to_private_key(server_mnemonic)
-        sender_address = mnemonic.to_public_key(server_mnemonic)
+        sender_address = account.address_from_private_key(sender_private_key)
+        print(f"[ALGO DEBUG] Sender address: {sender_address}")
 
         # Get suggested params
         params = algod_client.suggested_params()

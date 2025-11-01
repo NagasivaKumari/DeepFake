@@ -176,7 +176,7 @@ export default function Layout() {
       </header>
 
       {/* Main Content */}
-      <main className="min-h-[calc(100vh-4rem)]">
+      <main className="pt-20 md:pt-24">
         <Outlet />
       </main>
 
@@ -192,7 +192,7 @@ export default function Layout() {
                 <span className="font-bold text-lg">TruthProof</span>
               </div>
               <p className="text-sm text-gray-600">
-                Verifiable content provenance on the blockchain
+                Verifiable con  tent provenance on the blockchain
               </p>
             </div>
 

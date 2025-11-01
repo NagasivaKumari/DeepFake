@@ -15,7 +15,7 @@ import {
   Award,
   Trash2
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { motion } from "framer-motion";
 
 export default function MyDashboard() {
@@ -32,7 +32,7 @@ export default function MyDashboard() {
       return await storageClient.entities.RegisteredMedia.update(id, { status: "revoked" });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['registeredMedia']);
+  queryClient.invalidateQueries({ queryKey: ['registeredMedia'] });
     }
   });
 
@@ -49,6 +49,18 @@ export default function MyDashboard() {
     return styles[status] || styles.verified;
   };
 
+
+  // Helper for copying text
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  // Helper to safely format dates
+  const safeFormat = (dateValue, fmt) => {
+    const d = new Date(dateValue);
+    return isValid(d) ? format(d, fmt) : "-";
+  };
+
   const MediaCard = ({ media }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -61,7 +73,7 @@ export default function MyDashboard() {
             <div className="flex-1">
               <h3 className="font-semibold text-lg mb-1">{media.file_name}</h3>
               <p className="text-sm text-gray-500">
-                {format(new Date(media.created_date), "MMM d, yyyy 'at' h:mm a")}
+                {safeFormat(media.created_date, "MMM d, yyyy 'at' h:mm a")}
               </p>
             </div>
             <Badge className={getStatusBadge(media.status)}>
@@ -74,13 +86,58 @@ export default function MyDashboard() {
               <span className="text-gray-600">AI Model</span>
               <span className="font-medium">{media.ai_model}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-sm items-center gap-2">
               <span className="text-gray-600">SHA-256</span>
-              <code className="text-xs">{media.sha256_hash ? media.sha256_hash.substring(0, 16) + '...' : 'Not generated'}</code>
+              <span className="flex items-center gap-1">
+                <code className="text-xs break-all">{media.sha256_hash ? media.sha256_hash : 'Not generated'}</code>
+                {media.sha256_hash && (
+                  <Button size="icon" variant="ghost" className="p-1" title="Copy SHA-256" onClick={() => handleCopy(media.sha256_hash)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </Button>
+                )}
+              </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-sm items-center gap-2">
               <span className="text-gray-600">Perceptual Hash</span>
-              <code className="text-xs">{media.perceptual_hash ? media.perceptual_hash : 'Not generated'}</code>
+              <code className="text-xs break-all">{media.perceptual_hash ? media.perceptual_hash : 'Not generated'}</code>
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">IPFS CID</span>
+              <span className="flex items-center gap-1">
+                {media.ipfs_cid ? (
+                  <>
+                    <a href={`https://ipfs.io/ipfs/${media.ipfs_cid}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
+                      {media.ipfs_cid.substring(0, 12) + '...'}
+                    </a>
+                    <Button size="icon" variant="ghost" className="p-1" title="Copy CID" onClick={() => handleCopy(media.ipfs_cid)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-400">Not generated</span>
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Algorand Txn</span>
+              <span className="flex items-center gap-1">
+                {media.algo_tx ? (
+                  <>
+                    {media.algo_explorer_url ? (
+                      <a href={media.algo_explorer_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
+                        {media.algo_tx.substring(0, 10) + '...'}
+                      </a>
+                    ) : (
+                      <code className="text-xs">{media.algo_tx.substring(0, 10) + '...'}</code>
+                    )}
+                    <Button size="icon" variant="ghost" className="p-1" title="Copy Txn ID" onClick={() => handleCopy(media.algo_tx)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-400">Not generated</span>
+                )}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Image Link</span>
@@ -100,6 +157,7 @@ export default function MyDashboard() {
               size="sm"
               className="flex-1"
               onClick={() => window.open(media.file_url, '_blank')}
+              disabled={!media.file_url}
             >
               <ExternalLink className="w-4 h-4 mr-1" />
               View
@@ -122,7 +180,7 @@ export default function MyDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-12 px-4">
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">My Dashboard</h1>
@@ -191,8 +249,8 @@ export default function MyDashboard() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Last Upload</span>
                   <span className="font-semibold text-sm">
-                    {registeredMedia[0]
-                      ? format(new Date(registeredMedia[0].created_date), "MMM d")
+                    {registeredMedia[0] && registeredMedia[0].created_date
+                      ? safeFormat(registeredMedia[0].created_date, "MMM d")
                       : "—"}
                   </span>
                 </div>
@@ -220,8 +278,8 @@ export default function MyDashboard() {
 
           <TabsContent value="all">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {registeredMedia.map(media => (
-                <MediaCard key={media.id} media={media} />
+              {registeredMedia.map((media, idx) => (
+                <MediaCard key={media.id || idx} media={media} />
               ))}
             </div>
           </TabsContent>

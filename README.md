@@ -1,7 +1,19 @@
 # ProofChain: Decentralized KYC, Media Registration & Attestation
 
 ## Overview
-ProofChain is a decentralized platform for KYC (Know Your Customer) verification, media registration, and attestation, leveraging Algorand blockchain, IPFS (via Pinata), and the Lute wallet. It provides a secure, transparent, and tamper-proof way to register, verify, and track digital assets and user identities.
+ProofChain is a decentralized platform for KYC (Know Your Customer) verification, media registration, and attestation. Leveraging Algorand blockchain, IPFS (via Pinata), and the Lute Wallet, it provides a secure, transparent, and tamper-proof way to register, verify, and track digital assets and user identities.
+
+ProofChain also acts as a blockchain-based AI content provenance and deepfake verification system, enabling creators and users to verify media authenticity, detect misinformation, and ensure trust in digital content.
+
+Usage
+
+-egister as a user, complete KYC, and upload media.
+
+-Admins can approve/reject KYC and view all registrations.
+
+-All media uploads are pinned to IPFS and registered on Algorand.
+
+-Download and verify media via explorer and IPFS links.
 
 ## Features
 - **KYC Registration & Approval**: Users register and submit KYC data, which is reviewed and approved/rejected by admins.
@@ -19,57 +31,140 @@ ProofChain is a decentralized platform for KYC (Know Your Customer) verification
 - **Wallet**: Lute Wallet
 - **Storage**: IPFS (via Pinata)
 - **AI Generation**: Pollinations.ai
+- 
+
 ## Project Structure
+```plaintext
+DeepFake/
+├── admin/
+│   ├── admin.json
+│   ├── index.html
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── AppLayout.tsx
+│       ├── Header.tsx
+│       ├── KycAdmin.tsx
+│       ├── main.tsx
+│       ├── Settings.tsx
+│       ├── Sidebar.tsx
+│       ├── Users.tsx
+│       └── usersData.ts
+├── backend/
+│   ├── README_PROOFCHAIN.md
+│   ├── README.md
+│   ├── requirements.txt
+│   └── app/
+│       ├── config.py
+│       ├── lute_client.py
+│       ├── main.py
+│       ├── schemas.py
+│       ├── utils_email.py
+│       ├── __pycache__/
+│       ├── data/
+│       │   └── kyc.json
+│       └── routes/
+│           ├── auth.py
+│           ├── media.py
+│           ├── registrations.py
+│           └── __pycache__/
+├── contracts/
+│   ├── deploy.py
+│   ├── proofchain_pyteal.py
+│   ├── ProofChain.sol
+│   └── __pycache__/
+├── data/
+│   └── kyc.json
+├── metadata/
+│   └── schema.json
+├── public/
+│   └── robots.txt
+├── scripts/
+│   └── compile_deploy_pyteal.py
+├── src/
+│   ├── App.css
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   ├── utils.ts
+│   ├── vite-env.d.ts
+│   ├── api/
+│   │   ├── base44Client.ts
+│   │   └── storageClient.ts
+│   ├── components/
+│   │   ├── About.tsx
+│   │   ├── ConnectedHeader.tsx
+│   │   ├── DashboardCTA.tsx
+│   │   ├── DashboardHero.tsx
+│   │   ├── DashboardHowItWorks.tsx
+│   │   ├── DashboardStandards.tsx
+│   │   ├── DashboardStats.tsx
+│   │   ├── DashboardTrustProfile.tsx
+│   │   ├── Features.tsx
+│   │   ├── Footer.tsx
+│   │   ├── GetStarted.tsx
+│   │   ├── Header.tsx
+│   │   ├── Hero.tsx
+│   │   ├── HowItWorks.tsx
+│   │   ├── KycRegistration.tsx
+│   │   ├── LuteIcon.tsx
+│   │   └── dashboard/
+│   │       ├── FeatureCard.tsx
+│   │       └── StatsCard.tsx
+│   │   └── ui/
+│   │       └── ... (UI components)
+│   ├── hooks/
+│   │   ├── use-mobile.tsx
+│   │   ├── use-toast.ts
+│   │   └── useWallet.tsx
+│   ├── lib/
+│   │   ├── utils.ts
+│   │   └── walletUtils.ts
+│   └── pages/
+│       ├── Admin.tsx
+│       ├── Dashboard.tsx
+│       ├── DeveloperDocs.tsx
+│       ├── FAQ.tsx
+│       ├── Home.tsx
+│       ├── Index.tsx
+│       ├── Layout.jsx
+│       ├── MyDashboard.tsx
+│       ├── NotFound.tsx
+│       ├── RegisterMedia.tsx
+│       ├── TrustGraph.tsx
+│       └── VerifyMedia.tsx
+├── .vscode/
+│   └── settings.json
+├── bun.lockb
+├── components.json
+├── eslint.config.js
+├── index.html
+├── package.json
+├── postcss.config.js
+├── README.md
+├── tailwind.config.ts
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
 ```
-base44-fetch-mirror/
-## Setup & Installation
-1. **Clone the repository**
-	```bash
-2. **Backend**
-	- Create and activate a Python virtual environment in `backend/`.
-	- Install dependencies:
-	 - Copy `.env.example` to `.env` and fill in all required keys (Pinata, Algorand, AI, SMTP, etc).
-	 - Start the backend:
-		 ```bash
-3. **Frontend**
-	 - Install dependencies:
-		 ```bash
-	 - For admin dashboard:
-		 ```bash
-		 cd admin
-## Environment Variables
-- See `backend/.env.example` for all required variables (Pinata, Algorand, AI, SMTP, etc).
-- Never commit secrets to version control.
-
-## Usage
-- Register as a user, complete KYC, and upload media.
-- Admins can approve/reject KYC and view all registrations.
-- All media uploads are pinned to IPFS and registered on Algorand.
-- Download and verify media via explorer and IPFS links.
-
-## License
-MIT License
-
-
-ProofChain — Blockchain-Based AI Content Provenance & Deepfake Verification
-
-ProofChain is a prototype for a tamper-proof content verification system that records cryptographic and perceptual fingerprints of media, stores signed metadata on IPFS, and registers proofs on-chain. This repository contains a scaffold for contracts, backend, frontend, and tooling to get started.
 
 Short summary:
-- Hashing: SHA-256 (exact) + pHash (perceptual)
-- Storage: IPFS (Pinata integration)
-- Backend: FastAPI (Python) with endpoints to register and verify media
-- Contracts: Example PyTeal smart contract for Algorand in `backend/contracts`
+-Hashing: SHA-256 (exact) + pHash (perceptual)
 
-Decentralized Deepfake & Misinformation Verification System
+-Storage: IPFS (Pinata integration)
 
-This repository is the Canvas prototype for the "Algorand-lute-pinata-prototype" project. It contains the intro, design, and next-steps for building a decentralized digital content provenance system that uses Algorand, Lute Wallet, and Pinata/IPFS.
+-Backend: FastAPI (Python) with endpoints to register and verify media
 
-Goal
+-Frontend: React (Vite) with Lute Wallet integration
 
-Create a trustable digital content ecosystem where any image, video, or audio can be verified as authentic or AI-generated using blockchain-backed proofs, perceptual hashing, and verified creator identities.
+-Contracts: PyTeal smart contract for Algorand (backend/contracts)
 
-When media is uploaded or created, its unique hash, metadata, and creator’s verified signature are recorded on the Algorand blockchain. Anyone can later verify authenticity and integrity using the web dashboard or browser extension.
+-Identity: Lute Wallet for on-chain signing & DID-like identities
+
+-Decentralized Deepfake & Misinformation Verification System
 
 Core Problems Solved
 
@@ -108,6 +203,11 @@ Security & Authenticity Features
 - Immutable Records: Algorand ensures registered proofs cannot be altered.
 - Metadata Provenance: Each upload includes a signed JSON metadata record pinned to IPFS.
 - Future: ZK-proof extensions for privacy-preserving verification.
+Backend: FastAPI computes hashes, pins metadata to IPFS, and registers on-chain.
+
+Smart Contracts: PyTeal app stores owner address, CID, timestamp, and revoked flag using Algorand boxes.
+
+Frontend: React + Vite handles uploads, verification, and Lute Wallet integration.
 
 Deployment & Prototype Plan (Phases)
 
@@ -122,11 +222,11 @@ Vision
 
 A transparent digital media ecosystem where every piece of content — real or synthetic — carries a verifiable fingerprint of its origin, creator, and authenticity, making deepfake misuse and misinformation detection automatic and trustless.
 
-Next Steps
+Goal
 
-- Expand this Canvas project with a runbook, deployment scripts, and initial smart contract implementation in contracts/.
-- Create backend/, frontend/, and extension/ folders and add minimal scaffolds.
-- If you want, I can initialize a Git repository and push this scaffold to GitHub next.
+Create a trustable digital content ecosystem where any image, video, or audio can be verified as authentic or AI-generated using blockchain-backed proofs, perceptual hashing, and verified creator identities.
+
+When media is uploaded or created, its unique hash, metadata, and creator’s verified signature are recorded on the Algorand blockchain. Anyone can later verify authenticity and integrity using the web dashboard or browser extension.
 
 Algorand Smart Contract (PyTeal)
 
@@ -135,7 +235,14 @@ The contracts/proofchain_pyteal.py file contains a stateful PyTeal app that uses
 To compile and deploy to TestNet, set the following environment variables and run the deploy script:
 
 Required env vars:
-- ALGOD_TOKEN (PureStake API key)
+- Pinata API
+
+-Algorand (PureStake endpoint & deployer mnemonic)
+
+-AI integration keys
+
+-SMTP (optional for notifications)
+
 - DEPLOYER_MNEMONIC (deployer account mnemonic)
 
 Then run:
@@ -149,5 +256,6 @@ The script compiles the PyTeal into TEAL, deploys the application, and writes th
 Backend app-call helper
 
 Use backend/algorand_app_utils.py to prepare unsigned application-call transactions (client signs) and submit signed app-call txns. The backend endpoint will return the unsigned app-call JSON for client-side signing.
+
 
 PPT : https://docs.google.com/presentation/d/1GezNeJRjyPQkZp4Oi4cJe4HUCXP1umcn/edit?usp=drive_link&ouid=116725791494411323852&rtpof=true&sd=true

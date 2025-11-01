@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ALGOD_HEADER_KV: str | None = None
 
     LUTE_MNEMONIC: str | None = None
+    DEPLOYER_MNEMONIC: str | None = None
 
     UVICORN_HOST: str | None = None
     UVICORN_PORT: int | None = None

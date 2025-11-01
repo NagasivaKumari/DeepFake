@@ -182,7 +182,7 @@ export default function VerifyMedia() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12 px-4">
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12 px-4 overflow-hidden" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Verify Media Authenticity</h1>
@@ -196,13 +196,23 @@ export default function VerifyMedia() {
                 <Search className="w-5 h-5 text-blue-600" />Verification Method
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex gap-4">
-                <Button variant={verificationMethod === "upload" ? "default" : "outline"} onClick={() => setVerificationMethod("upload")} className="flex-1">
-                  <Upload className="w-4 h-4 mr-2" />Upload File
+            <CardContent className="space-y-6 px-8">
+              <div className="flex gap-2">
+                <Button
+                  variant={verificationMethod === "upload" ? "default" : "outline"}
+                  onClick={() => setVerificationMethod("upload")}
+                  className="flex flex-1 items-center justify-center gap-2 mx-auto"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload File</span>
                 </Button>
-                <Button variant={verificationMethod === "ipfs" ? "default" : "outline"} onClick={() => setVerificationMethod("ipfs")} className="flex-1">
-                  <LinkIcon className="w-4 h-4 mr-2" />IPFS URL/CID
+                <Button
+                  variant={verificationMethod === "ipfs" ? "default" : "outline"}
+                  onClick={() => setVerificationMethod("ipfs")}
+                  className="flex flex-1 items-center justify-center gap-2 mx-auto"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>IPFS URL/CID</span>
                 </Button>
               </div>
 
@@ -250,7 +260,6 @@ export default function VerifyMedia() {
                   </div>
                 </div>
               </CardHeader>
-
               <CardContent className="p-8 space-y-6">
                 {verificationResult.status === "verified" && verificationResult.match && (
                   <>
@@ -312,13 +321,27 @@ export default function VerifyMedia() {
                     <div className="pt-4 border-t space-y-3">
                       <h3 className="font-semibold">Blockchain Details</h3>
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                        <div className="flex justify-between items-center text-sm"><span className="text-gray-600">Transaction Hash</span><code className="text-xs font-mono">{verificationResult.match.blockchain_tx?.substring(0,20)}...</code></div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">Algorand Txn</span>
+                          {verificationResult.match.algo_tx ? (
+                            <>
+                              <code className="text-xs font-mono">{verificationResult.match.algo_tx}</code>
+                              {verificationResult.match.algo_explorer_url && (
+                                <Button variant="link" className="ml-2 p-0 h-auto text-blue-600" onClick={() => window.open(verificationResult.match.algo_explorer_url, "_blank")}>View on AlgoExplorer</Button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400">Not generated</span>
+                          )}
+                        </div>
                         <div className="flex justify-between items-center text-sm"><span className="text-gray-600">IPFS CID</span><code className="text-xs font-mono">{verificationResult.match.ipfs_cid}</code></div>
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      <Button variant="outline" className="flex-1" onClick={() => window.open(`https://etherscan.io/tx/${verificationResult.match.blockchain_tx}`, "_blank")}><ExternalLink className="w-4 h-4 mr-2" />View on Explorer</Button>
+                      {verificationResult.match.algo_explorer_url && (
+                        <Button variant="outline" className="flex-1" onClick={() => window.open(verificationResult.match.algo_explorer_url, "_blank")}> <ExternalLink className="w-4 h-4 mr-2" />View on AlgoExplorer</Button>
+                      )}
                       <Button variant="outline" className="flex-1" onClick={() => {
                         const metadata = { provenance_id: verificationResult.match.ipfs_cid, verification_status: "verified", ...verificationResult.match };
                         const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });

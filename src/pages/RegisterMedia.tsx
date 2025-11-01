@@ -334,12 +334,16 @@ export default function RegisterMedia() {
       // Add required fields
       const registrationPayload = {
         ...metadata,
+        algo_tx: null,
+        algo_explorer_url: null,
         signer_address: address,
         metadata_signature: signatureBase64,
       };
 
-      // Register media on blockchain
-      const registeredMedia = await registerMediaMutation.mutateAsync(registrationPayload);
+  // Debug: log registration payload
+  console.log("Registration payload", registrationPayload);
+  // Register media on blockchain
+  const registeredMedia = await registerMediaMutation.mutateAsync(registrationPayload);
 
       setRegisteredData({ ...registeredMedia, file_url: uploadData.file_url });
       setRegistrationComplete(true);
@@ -394,7 +398,7 @@ export default function RegisterMedia() {
       link.click();
     };
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -502,7 +506,7 @@ export default function RegisterMedia() {
   const isProcessing = (uploadFileMutation as any).isLoading || (registerMediaMutation as any).isLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Register New Media</h1>

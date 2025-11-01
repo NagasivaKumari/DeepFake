@@ -24,9 +24,10 @@ class RegisterRequest(BaseModel):
     ai_model: Optional[str]
     generation_time: Optional[str]
     notes: Optional[str]
-    blockchain_tx: Optional[str]
+    algo_tx: Optional[str]
+    algo_explorer_url: Optional[str]
     status: Optional[str] = Field(default="verified")
-    metadata_signature: str
+    metadata_signature: Optional[str] = None
     signer_address: str
 
 

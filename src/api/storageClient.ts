@@ -38,6 +38,11 @@ export const storage: any = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
           });
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error("Register API error:", errorText);
+            throw new Error(errorText);
+          }
           return await resp.json();
         } catch (e) {
           return { error: String(e) };
