@@ -15,6 +15,16 @@ Usage
 
 -Download and verify media via explorer and IPFS links.
 
+Vision:
+
+A transparent digital media ecosystem where every piece of content — real or synthetic — carries a verifiable fingerprint of its origin, creator, and authenticity. This ensures deepfake detection and misinformation verification are automatic and trustless.
+
+Goal
+
+Create a reliable digital content ecosystem where images, videos, or audio can be verified as authentic or AI-generated using blockchain-backed proofs, perceptual hashing, and verified creator identities.
+
+When media is uploaded or created, its unique hash, metadata, and creator’s verified signature are recorded on the Algorand blockchain, allowing anyone to verify authenticity and integrity via the web dashboard or browser extension.
+
 ## Features
 - **KYC Registration & Approval**: Users register and submit KYC data, which is reviewed and approved/rejected by admins.
 - **Media Upload & Registration**: Users upload media files, which are pinned to IPFS via Pinata and registered on Algorand.
@@ -31,7 +41,37 @@ Usage
 - **Wallet**: Lute Wallet
 - **Storage**: IPFS (via Pinata)
 - **AI Generation**: Pollinations.ai
-- 
+
+Short summary: 
+
+-Hashing: SHA-256 (exact) + pHash (perceptual)
+
+-Storage: IPFS (Pinata integration)
+
+-Backend: FastAPI (Python) with endpoints to register and verify media
+
+-Frontend: React (Vite) with Lute Wallet integration
+
+-Contracts: PyTeal smart contract for Algorand (backend/contracts)
+
+-Identity: Lute Wallet for on-chain signing & DID-like identities
+
+-Decentralized Deepfake & Misinformation Verification System
+
+Key Technologies and Roles
+
+- Blockchain Layer: Algorand — immutable, fast, low-cost, energy-efficient store for content proofs (SHA-256 & perceptual hashes, timestamps, and creator addresses).
+- Smart Contracts: PyTeal — stateful contract to map content hashes to metadata and creator addresses (using Algorand boxes).
+- Identity Layer: Lute Wallet — handles secure creator authentication and on-chain signing (DID-like identities / Algorand addresses).
+- Storage Layer: Pinata IPFS — decentralized storage of original media and signed metadata JSON (returns CID used in registration).
+- Hashing: SHA-256 + pHash — cryptographic uniqueness (SHA-256) + perceptual resilience to re-encoding (pHash).
+- Frontend: React (Vite) — upload, verification UI, and Lute SDK integration.
+- Backend: FastAPI (Python) — file uploads, compute hashes, pin to Pinata, and relay metadata to Algorand.
+- Browser Extension: Manifest v3 (React) — verify media in-page by computing local hashes and querying the chain/indexer.
+- AI Watermarking: SynthID / DeepMark — model-level watermarking for AI-generated content.
+- Metadata Standard: Signed JSON (creator DID, timestamp, CID) signed with the creator's Lute/Algorand key.
+- Incentive Layer: Algorand Standard Asset (ASA) or reputation system to reward/penalize creators.
+
 ## Project Structure
 ```plaintext
 DeepFake/
@@ -149,41 +189,12 @@ DeepFake/
 ├── tsconfig.node.json
 └── vite.config.ts
 ```
-Short summary:
--Hashing: SHA-256 (exact) + pHash (perceptual)
-
--Storage: IPFS (Pinata integration)
-
--Backend: FastAPI (Python) with endpoints to register and verify media
-
--Frontend: React (Vite) with Lute Wallet integration
-
--Contracts: PyTeal smart contract for Algorand (backend/contracts)
-
--Identity: Lute Wallet for on-chain signing & DID-like identities
-
--Decentralized Deepfake & Misinformation Verification System
-
 Core Problems Solved
 
 1. AI Deepfakes: synthetic media that appears real but is false.
 2. Misinformation: manipulated or re-encoded media spread on social platforms.
 3. Lack of Provenance: no reliable record of who created or altered media.
 4. Trust Issues: viewers cannot verify authenticity at scale.
-
-Key Technologies and Roles
-
-- Blockchain Layer: Algorand — immutable, fast, low-cost, energy-efficient store for content proofs (SHA-256 & perceptual hashes, timestamps, and creator addresses).
-- Smart Contracts: PyTeal — stateful contract to map content hashes to metadata and creator addresses (using Algorand boxes).
-- Identity Layer: Lute Wallet — handles secure creator authentication and on-chain signing (DID-like identities / Algorand addresses).
-- Storage Layer: Pinata IPFS — decentralized storage of original media and signed metadata JSON (returns CID used in registration).
-- Hashing: SHA-256 + pHash — cryptographic uniqueness (SHA-256) + perceptual resilience to re-encoding (pHash).
-- Frontend: React (Vite) — upload, verification UI, and Lute SDK integration.
-- Backend: FastAPI (Python) — file uploads, compute hashes, pin to Pinata, and relay metadata to Algorand.
-- Browser Extension: Manifest v3 (React) — verify media in-page by computing local hashes and querying the chain/indexer.
-- Optional AI Watermarking: SynthID / DeepMark — model-level watermarking for AI-generated content.
-- Metadata Standard: Signed JSON (creator DID, timestamp, CID) signed with the creator's Lute/Algorand key.
-- Incentive Layer (optional): Algorand Standard Asset (ASA) or reputation system to reward/penalize creators.
 
 System Architecture & Flow
 
@@ -215,16 +226,6 @@ Deployment & Prototype Plan (Phases)
 4. Browser Extension — implement in Manifest v3; provide in-page verification UI querying Algorand indexer.
 5. Testing — upload & verify test media; run SHA/pHash diff tests and edge-case checks.
 6. Mainnet Launch — connect to Algorand MainNet; add ASA-based reputation/incentives and finalize docs.
-
-Vision
-
-A transparent digital media ecosystem where every piece of content — real or synthetic — carries a verifiable fingerprint of its origin, creator, and authenticity, making deepfake misuse and misinformation detection automatic and trustless.
-
-Goal
-
-Create a trustable digital content ecosystem where any image, video, or audio can be verified as authentic or AI-generated using blockchain-backed proofs, perceptual hashing, and verified creator identities.
-
-When media is uploaded or created, its unique hash, metadata, and creator’s verified signature are recorded on the Algorand blockchain. Anyone can later verify authenticity and integrity using the web dashboard or browser extension.
 
 Algorand Smart Contract (PyTeal)
 
