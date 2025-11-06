@@ -28,6 +28,14 @@ export default function KycRegistration({ onStatusChange }: KycRegistrationProps
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.name === "dob" && e.target.value) {
+      // Only allow 4-digit year
+      const parts = e.target.value.split("-");
+      if (parts.length === 3 && parts[0].length > 4) {
+        // Ignore change if year is longer than 4 digits
+        return;
+      }
+    }
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   };
 
