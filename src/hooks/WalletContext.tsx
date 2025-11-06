@@ -23,7 +23,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setError("");
     try {
       const client = new LuteConnect(document.title || "YourAppName");
-      const res = await client.connect("testnet-v1.0");
+  console.log("[LuteConnect] Attempting to connect with network: testnet-v1.0");
+  const res = await client.connect("testnet-v1.0");
+      console.log("[LuteConnect] Connection result:", res);
       let addr: string | null = null;
       if (Array.isArray(res)) {
         const first = res[0];
@@ -40,15 +42,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (addr && /^[A-Z2-7]{58}$/.test(addr)) {
         setAddress(addr);
         setIsConnected(true);
+        console.log("[LuteConnect] Connected Algorand address:", addr);
       } else {
         setError("No valid address returned from wallet.");
         setAddress(null);
         setIsConnected(false);
+        console.error("[LuteConnect] No valid Algorand address returned.", res);
       }
     } catch (e: any) {
       setError(e.message || "Wallet connection failed.");
       setAddress(null);
       setIsConnected(false);
+      console.error("[LuteConnect] Wallet connection error:", e);
     }
   }, []);
 
