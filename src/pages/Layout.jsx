@@ -35,8 +35,8 @@ const navigationItems = [
 
 export default function Layout() {
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [walletAddress] = React.useState("0xAbC...f9d");
+    const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    const { address, isConnected } = useWallet();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-green-50/20">
@@ -99,6 +99,7 @@ export default function Layout() {
                   >
                     <Wallet className="w-4 h-4" />
                     <span className="font-mono text-sm">{walletAddress}</span>
+                    <span className="font-mono text-sm">{address ? address : 'Not connected'}</span>
                     <CheckCircle className="w-4 h-4 text-green-600" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -111,9 +112,11 @@ export default function Layout() {
                       </Badge>
                     </div>
                     <p className="font-mono text-xs break-all">{walletAddress}</p>
+                    <p className="font-mono text-xs break-all">{address ? address : 'Not connected'}</p>
                     <div className="pt-2 border-t">
                       <p className="text-xs text-gray-500">DID</p>
-                      <p className="font-mono text-xs break-all">did:ethr:{walletAddress}</p>
+                      <p className="font-mono text-xs break-all">{walletAddress}</p>
+                      <p className="font-mono text-xs break-all">{address ? `did:algo:${address}` : 'Not connected'}</p>
                     </div>
                   </div>
                   <DropdownMenuItem className="text-red-600">
