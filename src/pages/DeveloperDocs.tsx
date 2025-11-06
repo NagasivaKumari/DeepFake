@@ -26,7 +26,7 @@ const response = await fetch('https://api.proofchain.io/register', {
   body: JSON.stringify({
     file_url: 'ipfs://Qm...',
     ai_model: 'Stable Diffusion XL',
-    creator_did: 'did:ethr:0x...',
+    creator_did: 'did:algo:YOUR_ALGORAND_ADDRESS',
     metadata: {
       generation_time: '2025-01-15T10:30:00Z',
       prompt: 'A futuristic city at sunset'
