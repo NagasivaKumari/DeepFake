@@ -1,4 +1,5 @@
 import React from "react";
+import { useWallet } from "@/hooks/useWallet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,13 @@ import {
 } from "lucide-react";
 
 export default function TrustGraph() {
+  const { address } = useWallet();
   const trustConnections = [
     { name: "OpenAI", type: "Platform", verified: true },
     { name: "Adobe", type: "Platform", verified: true },
     { name: "Midjourney Official", type: "Platform", verified: true },
     { name: "C2PA Coalition", type: "Organization", verified: true },
-    { name: "Ethereum Foundation", type: "Blockchain", verified: true },
+  { name: "Algorand Foundation", type: "Blockchain", verified: true },
     { name: "IPFS Network", type: "Storage", verified: true },
   ];
 
@@ -133,7 +135,7 @@ export default function TrustGraph() {
                     <Shield className="w-12 h-12 text-white" />
                   </div>
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                    <Badge className="bg-white shadow-lg">You (DID:ethr:0x...)</Badge>
+                    <Badge className="bg-white shadow-lg">You {address ? `(DID:algo:${address.slice(0,6)}...${address.slice(-6)})` : '(Not connected)'}</Badge>
                   </div>
                 </div>
 
