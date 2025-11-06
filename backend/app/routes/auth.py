@@ -65,7 +65,22 @@ def kyc_status(address: str = Query(...)):
         if not wallet or not isinstance(wallet, str):
             continue
         if wallet.lower() == address.lower():
-            return {"status": rec.get("status", "not_started"), "kyc_id": rec.get("id")}
+            # Expose useful KYC fields for UI enrichment: email, phone and inferred verification flags.
+            status = rec.get("status", "not_started")
+            email = rec.get("email")
+            phone = rec.get("phone")
+            kyc_id = rec.get("id")
+            # Infer boolean flags from status or explicit fields if present
+            email_verified = bool(rec.get("email_verified") or (status in ("email_verified", "verified", "approved")))
+            phone_verified = bool(rec.get("phone_verified") or (status in ("verified", "approved")))
+            return {
+                "status": status,
+                "kyc_id": kyc_id,
+                "email": email,
+                "phone": phone,
+                "email_verified": email_verified,
+                "phone_verified": phone_verified,
+            }
     return {"status": "not_started"}
 
 def load_kyc():
@@ -97,6 +112,7 @@ def start_kyc(payload: KYCStartRequest, request: Request):
             if rec.get("wallet_address", "").lower() == wallet_address.lower():
                 raise HTTPException(status_code=400, detail="You have already completed KYC with this wallet address.")
 
+    # Build record from payload; keep values exactly as received
     rec = {
         "id": kyc_id,
         "full_name": payload.full_name,
@@ -109,6 +125,13 @@ def start_kyc(payload: KYCStartRequest, request: Request):
         "otp_code": None,
         "wallet_address": wallet_address,
     }
+    # Debug: log incoming payload and constructed record for troubleshooting
+    try:
+        print(f"[KYC] start_kyc payload: {payload.dict()}")
+        print(f"[KYC] constructed record (before codes): {{'id': kyc_id, 'full_name': payload.full_name, 'email': payload.email, 'phone': payload.phone, 'wallet_address': wallet_address}}")
+    except Exception:
+        # Avoid crashing on logging
+        pass
     # generate a short email code and store
     code = f"{random.randint(100000,999999)}"
     rec["email_code"] = code
