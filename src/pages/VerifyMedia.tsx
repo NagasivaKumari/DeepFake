@@ -30,6 +30,8 @@ export default function VerifyMedia() {
   const [ipfsUrl, setIpfsUrl] = useState("");
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [compareResult, setCompareResult] = useState<any>(null);
+  const [isComparing, setIsComparing] = useState(false);
 
   const { data: registeredMedia = [] } = useQuery({
     queryKey: ["registeredMedia"],
@@ -83,24 +85,49 @@ export default function VerifyMedia() {
     try {
       const sha256_hash = await calculateSha256(file);
       const perceptual_hash = await getPerceptualHash(file);
-      // Find match by SHA-256
-      const matchingMedia = (registeredMedia as any[]).find(
-        (m: any) => m.sha256_hash && m.sha256_hash === sha256_hash
-      );
+      // Query backend verify_by_hash which returns registrants and optional on-chain status
+      const resp = await fetch(`/media/verify_by_hash?sha256_hash=${encodeURIComponent(sha256_hash)}&check_onchain=true`);
+      let backendResult: any = null;
+      if (resp.ok) {
+        backendResult = await resp.json();
+      }
+      const matchingMedia = backendResult && Array.isArray(backendResult.registrants) && backendResult.registrants.length > 0
+        ? backendResult.registrants[0]
+        : null;
       let pHashMatch = false;
       let pHashSimilarity = 0;
-      if (matchingMedia && matchingMedia.perceptual_hash) {
-        // Compare perceptual hash (Hamming distance)
-        const a = perceptual_hash;
-        const b = matchingMedia.perceptual_hash;
-        let dist = 0;
-        for (let i = 0; i < Math.min(a.length, b.length); i++) {
-          if (a[i] !== b[i]) dist++;
+      let bestPhashMatch = null;
+      let bestPhashSimilarity = 0;
+      // If no exact SHA-256 match, try perceptual hash similarity
+      if (!matchingMedia && perceptual_hash) {
+        for (const m of registeredMedia) {
+          if (m.perceptual_hash) {
+            const a = perceptual_hash;
+            const b = m.perceptual_hash;
+            let dist = 0;
+            for (let i = 0; i < Math.min(a.length, b.length); i++) {
+              if (a[i] !== b[i]) dist++;
+            }
+            const similarity = Math.round(100 * (1 - dist / a.length));
+            if (similarity > bestPhashSimilarity) {
+              bestPhashSimilarity = similarity;
+              bestPhashMatch = m;
+            }
+          }
         }
-        pHashSimilarity = Math.round(100 * (1 - dist / a.length));
-        pHashMatch = pHashSimilarity > 90;
       }
       if (matchingMedia) {
+        // Exact match
+        if (matchingMedia.perceptual_hash) {
+          const a = perceptual_hash;
+          const b = matchingMedia.perceptual_hash;
+          let dist = 0;
+          for (let i = 0; i < Math.min(a.length, b.length); i++) {
+            if (a[i] !== b[i]) dist++;
+          }
+          pHashSimilarity = Math.round(100 * (1 - dist / a.length));
+          pHashMatch = pHashSimilarity > 90;
+        }
         setVerificationResult({
           status: "verified",
           match: matchingMedia,
@@ -109,6 +136,18 @@ export default function VerifyMedia() {
           pHashSimilarity,
           signatureValid: true,
           revoked: matchingMedia.status === "revoked",
+          onchain: backendResult ? backendResult.onchain : null,
+        });
+      } else if (bestPhashMatch && bestPhashSimilarity > 90) {
+        // Similar image found
+        setVerificationResult({
+          status: "similar",
+          match: bestPhashMatch,
+          sha256Match: false,
+          pHashMatch: true,
+          pHashSimilarity: bestPhashSimilarity,
+          signatureValid: true,
+          revoked: bestPhashMatch.status === "revoked",
         });
       } else {
         setVerificationResult({ status: "not_found", sha256Match: false, pHashMatch: false });
@@ -148,6 +187,8 @@ export default function VerifyMedia() {
     switch (verificationResult.status) {
       case "verified":
         return <CheckCircle className="w-16 h-16 text-green-500" />;
+      case "similar":
+        return <Star className="w-16 h-16 text-yellow-500" />;
       case "not_found":
         return <XCircle className="w-16 h-16 text-red-500" />;
       default:
@@ -161,6 +202,8 @@ export default function VerifyMedia() {
     switch (verificationResult.status) {
       case "verified":
         return "✓ Verified Authentic";
+      case "similar":
+        return "⚠ Similar Content Found";
       case "not_found":
         return "✗ Not Found in Registry";
       default:
@@ -174,12 +217,16 @@ export default function VerifyMedia() {
     switch (verificationResult.status) {
       case "verified":
         return "from-green-500 to-green-600";
+      case "similar":
+        return "from-yellow-400 to-yellow-600";
       case "not_found":
         return "from-red-500 to-red-600";
       default:
         return "from-yellow-500 to-yellow-600";
     }
   };
+
+  const getExplorerUrl = (txn: string | null) => txn ? `https://lora.algokit.io/testnet/transaction/${txn}` : null;
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12 px-4 overflow-hidden" style={{ paddingTop: '148.8px' }}>
@@ -287,12 +334,29 @@ export default function VerifyMedia() {
 
                         <div>
                           <Label className="text-gray-500 text-sm">Email</Label>
-                          <p className="font-medium mt-1">{verificationResult.match.email || "-"}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="font-medium">{verificationResult.match.email || "-"}</p>
+                            {verificationResult.match.email_verified ? (
+                              <Badge className="bg-green-100 text-green-700">Verified</Badge>
+                            ) : (
+                              <Badge className="bg-yellow-100 text-yellow-700">Unverified</Badge>
+                            )}
+                          </div>
                         </div>
 
                         <div>
                           <Label className="text-gray-500 text-sm">Phone</Label>
-                          <p className="font-medium mt-1">{verificationResult.match.phone || "-"}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="font-medium">{verificationResult.match.phone || "-"}</p>
+                            {verificationResult.match.phone_verified ? (
+                              <Badge className="bg-green-100 text-green-700">Verified</Badge>
+                            ) : (
+                              <Badge className="bg-yellow-100 text-yellow-700">Pending</Badge>
+                            )}
+                          </div>
+                          {!verificationResult.match.phone_verified && (
+                            <p className="text-xs text-gray-500 mt-2">Phone OTP verification not yet implemented — phone may be unverified.</p>
+                          )}
                         </div>
                       </div>
 
@@ -326,21 +390,45 @@ export default function VerifyMedia() {
                           {verificationResult.match.algo_tx ? (
                             <>
                               <code className="text-xs font-mono">{verificationResult.match.algo_tx}</code>
-                              {verificationResult.match.algo_explorer_url && (
-                                <Button variant="link" className="ml-2 p-0 h-auto text-blue-600" onClick={() => window.open(verificationResult.match.algo_explorer_url, "_blank")}>View on AlgoExplorer</Button>
-                              )}
+                              <Button
+                                variant="link"
+                                className="ml-2 p-0 h-auto text-blue-600"
+                                onClick={() => {
+                                  const url = getExplorerUrl(verificationResult.match.algo_tx);
+                                  if (url) window.open(url, "_blank");
+                                }}
+                              >View on Explorer</Button>
                             </>
                           ) : (
                             <span className="text-xs text-gray-400">Not generated</span>
                           )}
                         </div>
                         <div className="flex justify-between items-center text-sm"><span className="text-gray-600">IPFS CID</span><code className="text-xs font-mono">{verificationResult.match.ipfs_cid}</code></div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">On-chain registration</span>
+                          <span className="text-xs font-mono">
+                            {verificationResult.onchain ? (
+                              (() => {
+                                const onchain = (verificationResult.onchain as any[]).find((o: any) => o.unique_reg_key === (verificationResult.match.unique_reg_key || ""));
+                                if (onchain) {
+                                  return onchain.onchain_present ? (<Badge className="bg-green-100 text-green-700">On-chain</Badge>) : (<Badge className="bg-red-100 text-red-700">Missing</Badge>);
+                                }
+                                return (<span className="text-gray-400">Unknown</span>);
+                              })()
+                            ) : (
+                              <span className="text-gray-400">Not checked</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      {verificationResult.match.algo_explorer_url && (
-                        <Button variant="outline" className="flex-1" onClick={() => window.open(verificationResult.match.algo_explorer_url, "_blank")}> <ExternalLink className="w-4 h-4 mr-2" />View on AlgoExplorer</Button>
+                      {verificationResult.match.algo_tx && (
+                        <Button variant="outline" className="flex-1" onClick={() => {
+                          const url = getExplorerUrl(verificationResult.match.algo_tx);
+                          if (url) window.open(url, "_blank");
+                        }}> <ExternalLink className="w-4 h-4 mr-2" />View on Explorer</Button>
                       )}
                       <Button variant="outline" className="flex-1" onClick={() => {
                         const metadata = { provenance_id: verificationResult.match.ipfs_cid, verification_status: "verified", ...verificationResult.match };
@@ -351,7 +439,55 @@ export default function VerifyMedia() {
                         link.download = `verification-report.json`;
                         link.click();
                       }}><Download className="w-4 h-4 mr-2"/>Download Report</Button>
+                      <Button variant="outline" className="flex-1" onClick={async () => {
+                        setCompareResult(null);
+                        setIsComparing(true);
+                        try {
+                          const form = new FormData();
+                          if (file) {
+                            form.append('suspect', file);
+                          } else if (verificationResult.match && verificationResult.match.file_url) {
+                            const resp = await fetch(verificationResult.match.file_url);
+                            const blob = await resp.blob();
+                            form.append('suspect', new File([blob], 'registered_copy', { type: blob.type }));
+                          } else {
+                            alert('No local file to compare. Please upload a file first.');
+                            setIsComparing(false);
+                            return;
+                          }
+                          if (verificationResult.match && verificationResult.match.ipfs_cid) {
+                            form.append('ipfs_cid', verificationResult.match.ipfs_cid);
+                          } else if (verificationResult.match && verificationResult.match.sha256_hash) {
+                            form.append('registered_sha256', verificationResult.match.sha256_hash);
+                          }
+                          const r = await fetch('/media/compare', { method: 'POST', body: form });
+                          if (!r.ok) {
+                            const txt = await r.text();
+                            throw new Error(txt || r.statusText);
+                          }
+                          const data = await r.json();
+                          setCompareResult(data);
+                        } catch (e: any) {
+                          alert('Compare failed: ' + (e?.message || e));
+                        } finally {
+                          setIsComparing(false);
+                        }
+                      }}><Fingerprint className="w-4 h-4 mr-2"/>{isComparing ? 'Comparing...' : 'Run Ensemble Comparison'}</Button>
                     </div>
+                    {compareResult && (
+                      <div className="pt-4 border-t space-y-3">
+                        <h3 className="font-semibold">Ensemble Comparison Result</h3>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-sm"><strong>Label:</strong> {compareResult.label}</p>
+                          <p className="text-sm"><strong>Combined score:</strong> {Math.round((compareResult.combined||0)*100)/100}</p>
+                          <div className="text-xs mt-2 space-y-1">
+                            <div>pHash Hamming: {compareResult.phash_hamming}</div>
+                            <div>ORB matches: {compareResult.orb_matches} (ratio: {Math.round((compareResult.orb_ratio||0)*100)/100})</div>
+                            <div>Embedding similarity: {Math.round((compareResult.embedding_sim||0)*100)/100}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
