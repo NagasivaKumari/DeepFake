@@ -13,28 +13,62 @@ def approval_program():
     ])
 
     # This is a simplified register function for testing compilation
+    # On-chain key derivation and unique registration handling.
+    # Expects app_args:
+    #   [0] = Bytes("register")
+    #   [1] = H (content preimage, e.g., sha256(file_bytes) as 32 raw bytes)
+    #   [2] = value to store under the media key (e.g., IPFS CID or packed metadata)
+    #   [3] = optional nonce (e.g., txid or random salt) for unique per-submission registrations
+    # Behavior:
+    #   - Compute media_key = sha256(H) on-chain. If the box doesn't exist, create and store value.
+    #   - Compute reg_key = sha256(media_key || nonce) where nonce is app_args[3] if provided,
+    #     else a fallback derived from (sender || round) to ensure uniqueness.
+    #   - Create reg_key box if missing and store Txn.sender() as the value.
     on_register = Seq([
-        # Minimal arguments for testing
-        Assert(Txn.application_args.length() == Int(3)),
-        
-        # Use a variable to hold the key
-        (sha := ScratchVar(TealType.bytes)).store(Txn.application_args[1]),
-        
-        # Check if the box exists. Use a temporary variable for the result.
-        (box_exists := App.box_get(sha.load())),
-        If(box_exists.hasValue(),
-           # If the box already exists, the user is already "registered".
-           # We can just approve the transaction without doing anything.
-           Approve(),
-           # If the box does not exist, create it to "register" the user.
-           Seq(
-               # Allocate space for the box. Pop() is used to discard the return value
-               # of box_create, as only the last expression in a Seq can have a value.
-               Pop(App.box_create(sha.load(), Int(32))),
-               # You could optionally store something in the box, e.g., the address again.
-               App.box_put(sha.load(), Txn.application_args[2]),
-               Approve()
-           )
+        # Allow 3,4 or 5 args: (register,H,value[,nonce[,embedding32]])
+        Assert(Or(Txn.application_args.length() == Int(3), Txn.application_args.length() == Int(4), Txn.application_args.length() == Int(5))),
+
+        # Compute media_key on-chain
+        (media_key := ScratchVar(TealType.bytes)).store(Sha256(Txn.application_args[1])),
+
+        # Ensure media box exists and stores provided value (CID/metadata)
+        (media_exists := App.box_get(media_key.load())),
+        If(
+            Not(media_exists.hasValue()),
+            Seq(
+                Pop(App.box_create(media_key.load(), Len(Txn.application_args[2]))),
+                App.box_put(media_key.load(), Txn.application_args[2]),
+            ),
+        ),
+
+        # Determine nonce: app_args[3] if present, else fallback to (sender || round)
+        (nonce := ScratchVar(TealType.bytes)).store(
+            If(
+                Txn.application_args.length() >= Int(4),
+                Txn.application_args[3],
+                Concat(Txn.sender(), Itob(Global.round()))
+            )
+        ),
+
+        # Optional embedding arg (32 raw bytes) when provided as 5th arg
+        (embedding := ScratchVar(TealType.bytes)).store(
+            If(Txn.application_args.length() == Int(5), Txn.application_args[4], Bytes(""))
+        ),
+
+        # Compute registration key and enforce non-existence (first-to-register)
+        (reg_key := ScratchVar(TealType.bytes)).store(Sha256(Concat(media_key.load(), nonce.load()))),
+        (reg_exists := App.box_get(reg_key.load())),
+        If(
+            reg_exists.hasValue(),
+            # If registration already exists, reject to preserve atomic first-to-register semantics
+            Reject(),
+            Seq(
+                # compute length dynamically: Len(embedding) + 32 + 8
+                (calc_size := ScratchVar(TealType.uint64)).store(Len(embedding.load()) + Int(32) + Int(8)),
+                Pop(App.box_create(reg_key.load(), calc_size.load())),
+                App.box_put(reg_key.load(), Concat(embedding.load(), Txn.sender(), Itob(Global.round()))),
+                Approve(),
+            ),
         ),
     ])
 
@@ -84,7 +118,6 @@ def approval_program():
                )
             )
         )
-
     @Subroutine(TealType.uint64)
     def verify_content():
         # Creates a proof record for a piece of content.
