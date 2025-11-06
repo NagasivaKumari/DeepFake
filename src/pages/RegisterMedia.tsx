@@ -56,6 +56,10 @@ export default function RegisterMedia() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [file, setFile] = useState<any>(null);
+  const [showAIGenerate, setShowAIGenerate] = useState(false);
+  const [aiType, setAIType] = useState('image');
+  const [aiPrompt, setAIPrompt] = useState('');
+  const [aiLoading, setAILoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [formData, setFormData] = useState({
     ai_model: "",
@@ -362,6 +366,8 @@ export default function RegisterMedia() {
       file_name: reg.file_name || null,
       file_type: reg.file_type || null,
       sha256_hash: reg.sha256_hash || null,
+      content_key: (reg as any).content_key || null,
+      unique_reg_key: (reg as any).unique_reg_key || null,
       perceptual_hash: reg.perceptual_hash || null,
       ipfs_cid: reg.ipfs_cid || null,
       algo_tx: reg.algo_tx || null,
@@ -370,10 +376,16 @@ export default function RegisterMedia() {
       ai_model: reg.ai_model || null,
       generation_time: reg.generation_time || null,
       notes: reg.notes || null,
-      did: `did:ethr:0xAbC...f9d`,
+      // did will be populated below using the connected wallet address (Algorand)
+      did: null,
       standard: "C2PA v1.0",
       registered_at: new Date().toISOString(),
     };
+
+    // Prefer Algorand DID when user is connected
+    if (address) {
+      metadata.did = `did:algo:${address}`;
+    }
 
     const blob = new Blob([JSON.stringify(metadata, null, 2)], {
       type: "application/json",
@@ -438,6 +450,10 @@ export default function RegisterMedia() {
                       Verified
                     </Badge>
                   </div>
+                  <div className="md:col-span-2">
+                    <Label className="text-gray-500 text-sm">Registration Key</Label>
+                    <p className="font-mono text-xs mt-1 break-all">{(reg as any).unique_reg_key ? (reg as any).unique_reg_key : <span className="text-yellow-700">Will be unique per submission</span>}</p>
+                  </div>
                   <div>
                     <Label className="text-gray-500 text-sm">SHA-256 Hash</Label>
                     <p className="font-mono text-xs mt-1 break-all">{reg.sha256_hash ? reg.sha256_hash : <span className="text-red-600">Not generated</span>}</p>
@@ -453,8 +469,76 @@ export default function RegisterMedia() {
                   <div>
                     <Label className="text-gray-500 text-sm">Algorand Transaction</Label>
                     <p className="font-mono text-xs mt-1 break-all">{reg.algo_tx ? reg.algo_tx : <span className="text-red-600">Not generated</span>}</p>
-                    {reg.algo_explorer_url && (
-                      <Button variant="outline" onClick={() => window.open(reg.algo_explorer_url, "_blank")} className="mt-2">
+                    {(reg.algo_tx || reg.algo_explorer_url) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const tx = reg.algo_tx;
+                          const explorer = tx
+                            ? `https://lora.algokit.io/testnet/transaction/${tx}`
+                            : reg.algo_explorer_url;
+
+                          // Open a blank tab synchronously to preserve the user gesture and avoid popup blocking.
+                          const newWin = window.open("about:blank", "_blank");
+
+                          // If there's no tx id, navigate immediately and return.
+                          if (!tx) {
+                            if (newWin) newWin.location = explorer || "about:blank";
+                            return;
+                          }
+
+                          // Async check: poll the backend for tx status and navigate the opened tab when available.
+                          const check = async () => {
+                            try {
+                              const resp = await fetch(`/media/tx_status/${tx}`);
+                              if (!resp.ok) return { exists: false };
+                              return await resp.json();
+                            } catch (e) {
+                              return { exists: false };
+                            }
+                          };
+
+                          (async () => {
+                            try {
+                              const first = await check();
+                              if (first.exists) {
+                                if (newWin) newWin.location = explorer;
+                                return;
+                              }
+
+                              // Ask user whether to wait. This happens after the click but the tab is already open.
+                              const shouldWait = confirm("Explorer has not indexed the transaction yet. Wait and open when available? (Cancel to open now)");
+                              if (!shouldWait) {
+                                if (newWin) newWin.location = explorer;
+                                return;
+                              }
+
+                              const maxAttempts = 15;
+                              let attempts = 0;
+                              const poll = async () => {
+                                attempts++;
+                                const r = await check();
+                                if (r.exists) {
+                                  if (newWin) newWin.location = explorer;
+                                  return;
+                                }
+                                if (attempts < maxAttempts) {
+                                  setTimeout(poll, 2000);
+                                } else {
+                                  // Final fallback: navigate anyway so user can manually refresh in explorer
+                                  if (newWin) newWin.location = explorer;
+                                  alert("Transaction still not indexed after 30s. Explorer opened; refresh the page in the explorer to see the transaction once indexed.");
+                                }
+                              };
+                              setTimeout(poll, 2000);
+                            } catch (err) {
+                              console.error("tx status check failed", err);
+                              if (newWin) newWin.location = explorer;
+                            }
+                          })();
+                        }}
+                        className="mt-2"
+                      >
                         <ExternalLink className="w-4 h-4 mr-2" />
                         View on Algorand Explorer
                       </Button>
@@ -533,43 +617,68 @@ export default function RegisterMedia() {
                         <Button type="button" onClick={() => document.getElementById('file-upload')?.click()}>Browse Files</Button>
                       </label>
                       <div className="mt-3">
-                        <Button type="button" variant="outline" onClick={async () => {
-                          const type = window.prompt('Generate an Image or Video? Type "image" or "video"', 'image');
-                          if (!type || (type !== 'image' && type !== 'video')) return;
-                          const prompt = window.prompt('Enter your prompt for the AI generation:');
-                          if (!prompt) return;
-                          try {
-                            const res = await fetch('http://localhost:8011/ai/generate', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ prompt, type }),
-                            });
-                            const data = await res.json();
-                            if (!data.result) throw new Error('No result from backend');
-                            const mediaUrl = data.result;
-                            let file;
-                            if (mediaUrl.startsWith('data:')) {
-                              // base64 data URL
-                              const arr = mediaUrl.split(',');
-                              const mime = arr[0].match(/:(.*?);/)[1];
-                              const bstr = atob(arr[1]);
-                              let n = bstr.length;
-                              const u8arr = new Uint8Array(n);
-                              while (n--) u8arr[n] = bstr.charCodeAt(n);
-                              file = new File([u8arr], `ai-generated-${Date.now()}.${type === 'image' ? 'png' : 'mp4'}`, { type: mime });
-                            } else {
-                              // fetch from URL
-                              const response = await fetch(mediaUrl);
-                              const blob = await response.blob();
-                              file = new File([blob], `ai-generated-${Date.now()}.${type === 'image' ? 'png' : 'mp4'}`, { type: blob.type });
-                            }
-                            setFile(file);
-                            setFormData(f => ({ ...f, notes: `Prompt: ${prompt}` }));
-                          } catch (err) {
-                            alert('AI generation failed: ' + err);
-                          }
-                        }}>Generate (AI)</Button>
+                        <Button type="button" variant="outline" onClick={() => setShowAIGenerate(true)}>
+                          Generate (AI)
+                        </Button>
                       </div>
+                      {showAIGenerate && (
+                        <div className="mt-4 p-4 border rounded-xl bg-gray-50 max-w-md mx-auto">
+                          <h3 className="font-semibold mb-2">AI Generation</h3>
+                          <div className="mb-2">
+                            <label className="block text-sm font-medium mb-1">Type</label>
+                            <select value={aiType} onChange={e => setAIType(e.target.value)} className="border rounded px-2 py-1 w-full">
+                              <option value="image">Image</option>
+                              <option value="video">Video</option>
+                            </select>
+                          </div>
+                          <div className="mb-2">
+                            <label className="block text-sm font-medium mb-1">Prompt</label>
+                            <input type="text" value={aiPrompt} onChange={e => setAIPrompt(e.target.value)} className="border rounded px-2 py-1 w-full" placeholder="Describe what to generate..." />
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <Button type="button" disabled={aiLoading || !aiPrompt} onClick={async () => {
+                              setAILoading(true);
+                              try {
+                                const res = await fetch('http://localhost:8011/ai/generate', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ prompt: aiPrompt, type: aiType }),
+                                });
+                                const data = await res.json();
+                                if (!data.result) throw new Error('No result from backend');
+                                const mediaUrl = data.result;
+                                let file;
+                                if (mediaUrl.startsWith('data:')) {
+                                  // base64 data URL
+                                  const arr = mediaUrl.split(',');
+                                  const mime = arr[0].match(/:(.*?);/)[1];
+                                  const bstr = atob(arr[1]);
+                                  let n = bstr.length;
+                                  const u8arr = new Uint8Array(n);
+                                  while (n--) u8arr[n] = bstr.charCodeAt(n);
+                                  file = new File([u8arr], `ai-generated-${Date.now()}.${aiType === 'image' ? 'png' : 'mp4'}`, { type: mime });
+                                } else {
+                                  // fetch from URL
+                                  const response = await fetch(mediaUrl);
+                                  const blob = await response.blob();
+                                  file = new File([blob], `ai-generated-${Date.now()}.${aiType === 'image' ? 'png' : 'mp4'}`, { type: blob.type });
+                                }
+                                setFile(file);
+                                setFormData(f => ({ ...f, notes: `Prompt: ${aiPrompt}` }));
+                                setShowAIGenerate(false);
+                                setAIPrompt('');
+                              } catch (err) {
+                                alert('AI generation failed: ' + err);
+                              } finally {
+                                setAILoading(false);
+                              }
+                            }}>
+                              {aiLoading ? 'Generating...' : 'Generate'}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => setShowAIGenerate(false)} disabled={aiLoading}>Cancel</Button>
+                          </div>
+                        </div>
+                      )}
                       <p className="text-sm text-gray-500 mt-4">Supported formats: Images (PNG, JPG, JPEG), Videos (MP4, MOV)</p>
                     </>
                   ) : (
