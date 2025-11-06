@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { motion } from "framer-motion";
+import { useWallet } from "@/hooks/useWallet";
 
 export default function MyDashboard() {
+  const { address, isConnected } = useWallet();
   const queryClient = useQueryClient();
   
   const { data: registeredMedia = [] } = useQuery({
@@ -28,17 +30,60 @@ export default function MyDashboard() {
   });
 
   const revokeMediaMutation = useMutation({
-    mutationFn: async (id) => {
-      return await storageClient.entities.RegisteredMedia.update(id, { status: "revoked" });
+    mutationFn: async (arg) => {
+      // arg can be { id, status }
+      const { id, status } = typeof arg === 'object' ? arg : { id: arg, status: 'revoked' };
+      console.log(`Status change mutation called for id: ${id}, status: ${status}`);
+      try {
+        const result = await storageClient.entities.RegisteredMedia.update(id, { status });
+        console.log('Backend response:', result);
+        return result;
+      } catch (err) {
+        console.error('Backend error:', err);
+        throw err;
+      }
     },
-    onSuccess: () => {
-  queryClient.invalidateQueries({ queryKey: ['registeredMedia'] });
+    onSuccess: (data) => {
+      console.log('Revoke mutation success:', data);
+      queryClient.invalidateQueries({ queryKey: ['registeredMedia'] });
+      if (data && data.error) {
+        alert('Failed to revoke: ' + data.error);
+        return;
+      }
+      // Accept new backend format: { updated: [ ... ] }
+      if (data && Array.isArray(data.updated)) {
+        const allRevoked = data.updated.every((item) => item.status === 'revoked');
+        if (!allRevoked) {
+          alert('Some items were not revoked as expected.');
+        }
+        // Otherwise, treat as success (no alert)
+        return;
+      }
+      // Fallback for legacy/single object
+      if (data && data.status !== 'revoked') {
+        alert('Failed to revoke: Unexpected response: ' + JSON.stringify(data));
+      }
+    },
+    onError: (error) => {
+      console.error('Revoke mutation error:', error);
+      if (error?.response) {
+        error.response.text().then((text) => {
+          console.error('Revoke error response body:', text);
+          alert('Failed to revoke: ' + text);
+        });
+      } else {
+        alert('Failed to revoke: ' + (error?.message || error));
+      }
     }
   });
 
-  const verifiedMedia = registeredMedia.filter(m => m.status === 'verified');
-  const pendingMedia = registeredMedia.filter(m => m.status === 'pending');
-  const revokedMedia = registeredMedia.filter(m => m.status === 'revoked');
+  // Only show media for connected wallet (use signer_address for Algorand/Lute wallet)
+  const filteredMedia = isConnected && address
+    ? registeredMedia.filter(m => (m.signer_address || m.owner_address || m.address) === address)
+    : [];
+  const verifiedMedia = filteredMedia.filter(m => m.status === 'verified');
+  const pendingMedia = filteredMedia.filter(m => m.status === 'pending');
+  const revokedMedia = filteredMedia.filter(m => m.status === 'revoked');
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -61,7 +106,12 @@ export default function MyDashboard() {
     return isValid(d) ? format(d, fmt) : "-";
   };
 
-  const MediaCard = ({ media }) => (
+  // Helper to get the correct ID for PATCH and keys (use sha256_hash)
+  const getMediaId = (media, idx) => media.sha256_hash || idx;
+
+  const getExplorerUrl = (txn) => txn ? `https://lora.algokit.io/testnet/transaction/${txn}` : null;
+
+  const MediaCard = ({ media, idx }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -87,6 +137,17 @@ export default function MyDashboard() {
               <span className="font-medium">{media.ai_model}</span>
             </div>
             <div className="flex justify-between text-sm items-center gap-2">
+              <span className="text-gray-600">Registration Key</span>
+              <span className="flex items-center gap-1">
+                <code className="text-xs break-all">{(media as any).unique_reg_key ? (media as any).unique_reg_key : '—'}</code>
+                {(media as any).unique_reg_key && (
+                  <Button size="icon" variant="ghost" className="p-1" title="Copy Registration Key" onClick={() => handleCopy((media as any).unique_reg_key)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </Button>
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm items-center gap-2">
               <span className="text-gray-600">SHA-256</span>
               <span className="flex items-center gap-1">
                 <code className="text-xs break-all">{media.sha256_hash ? media.sha256_hash : 'Not generated'}</code>
@@ -106,9 +167,15 @@ export default function MyDashboard() {
               <span className="flex items-center gap-1">
                 {media.ipfs_cid ? (
                   <>
-                    <a href={`https://ipfs.io/ipfs/${media.ipfs_cid}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
-                      {media.ipfs_cid.substring(0, 12) + '...'}
-                    </a>
+                    {/* Use the same resolved image URL as the View Image button so CID link opens the same gateway */}
+                    {(() => {
+                      const resolvedUrl = media.file_url ? media.file_url : `https://ipfs.io/ipfs/${media.ipfs_cid}`;
+                      return (
+                        <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
+                          {media.ipfs_cid.substring(0, 12) + '...'}
+                        </a>
+                      );
+                    })()}
                     <Button size="icon" variant="ghost" className="p-1" title="Copy CID" onClick={() => handleCopy(media.ipfs_cid)}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </Button>
@@ -123,13 +190,9 @@ export default function MyDashboard() {
               <span className="flex items-center gap-1">
                 {media.algo_tx ? (
                   <>
-                    {media.algo_explorer_url ? (
-                      <a href={media.algo_explorer_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
-                        {media.algo_tx.substring(0, 10) + '...'}
-                      </a>
-                    ) : (
-                      <code className="text-xs">{media.algo_tx.substring(0, 10) + '...'}</code>
-                    )}
+                    <a href={getExplorerUrl(media.algo_tx)} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
+                      {media.algo_tx.substring(0, 10) + '...'}
+                    </a>
                     <Button size="icon" variant="ghost" className="p-1" title="Copy Txn ID" onClick={() => handleCopy(media.algo_tx)}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     </Button>
@@ -141,7 +204,7 @@ export default function MyDashboard() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Image Link</span>
-              {media.file_url ? (
+              {(media.file_url && media.status !== 'revoked') ? (
                 <a href={media.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">
                   View Image
                 </a>
@@ -157,20 +220,42 @@ export default function MyDashboard() {
               size="sm"
               className="flex-1"
               onClick={() => window.open(media.file_url, '_blank')}
-              disabled={!media.file_url}
+              disabled={!media.file_url || media.status === 'revoked'}
             >
               <ExternalLink className="w-4 h-4 mr-1" />
               View
             </Button>
-            {media.status === 'verified' && (
+            {(media.status === 'verified' || media.status === 'revoked') && (
               <Button
-                variant="outline"
+                variant={media.status === 'verified' ? 'outline' : 'secondary'}
                 size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={() => revokeMediaMutation.mutate(media.id)}
+                className={media.status === 'verified'
+                  ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                  : 'text-green-600 hover:text-green-700 hover:bg-green-50'}
+                onClick={() => {
+                  const id = media.sha256_hash;
+                  if (id && typeof id === 'string' && id.length > 10) {
+                    if (media.status === 'verified') {
+                      revokeMediaMutation.mutate({ id, status: 'revoked' });
+                    } else if (media.status === 'revoked') {
+                      revokeMediaMutation.mutate({ id, status: 'verified' });
+                    }
+                  } else {
+                    alert('Invalid or missing media hash. Cannot update status.');
+                  }
+                }}
               >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Revoke
+                {media.status === 'verified' ? (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Revoke
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 mr-1" />
+                    Restore
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -178,6 +263,17 @@ export default function MyDashboard() {
       </Card>
     </motion.div>
   );
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+        <div className="bg-white rounded-xl shadow-lg p-10 max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-2 text-primary">Connect Wallet</h2>
+          <p className="mb-4 text-gray-700">Please connect your wallet to view your dashboard and verified content.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
@@ -197,8 +293,8 @@ export default function MyDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="font-mono text-sm mb-2">0xAbC...f9d</p>
-              <p className="text-xs text-white/80">DID: did:ethr:0xAbC...f9d</p>
+              <p className="font-mono text-sm mb-2">{address ? `${address.slice(0, 6)}...${address.slice(-6)}` : "Not connected"}</p>
+              <p className="text-xs text-white/80">DID: did:algo:{address ? `${address.slice(0, 6)}...${address.slice(-6)}` : "Not connected"}</p>
               <Badge className="mt-4 bg-white/20 border-white/30">
                 <Award className="w-3 h-3 mr-1" />
                 Verified Creator
@@ -279,31 +375,31 @@ export default function MyDashboard() {
           <TabsContent value="all">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {registeredMedia.map((media, idx) => (
-                <MediaCard key={media.id || idx} media={media} />
+                <MediaCard key={`media-${getMediaId(media, idx)}-${media.file_name || idx}`} media={media} idx={idx} />
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="verified">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {verifiedMedia.map(media => (
-                <MediaCard key={media.id} media={media} />
+              {verifiedMedia.map((media, idx) => (
+                <MediaCard key={`verified-${getMediaId(media, idx)}-${media.file_name || idx}`} media={media} idx={idx} />
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="pending">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pendingMedia.map(media => (
-                <MediaCard key={media.id} media={media} />
+              {pendingMedia.map((media, idx) => (
+                <MediaCard key={`pending-${getMediaId(media, idx)}-${media.file_name || idx}`} media={media} idx={idx} />
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="revoked">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {revokedMedia.map(media => (
-                <MediaCard key={media.id} media={media} />
+              {revokedMedia.map((media, idx) => (
+                <MediaCard key={`revoked-${getMediaId(media, idx)}-${media.file_name || idx}`} media={media} idx={idx} />
               ))}
             </div>
           </TabsContent>
