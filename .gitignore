@@ -54,3 +54,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/backend/app/data/registered_media.json
+/backend/app/data/kyc.json
