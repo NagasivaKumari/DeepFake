@@ -1,70 +1,34 @@
 import os
 from pathlib import Path
 
-# Support pydantic v2 (BaseSettings moved to pydantic-settings),
-# pydantic v1 (BaseSettings in pydantic) and a lightweight fallback
-# when neither package is available in the environment (useful for
-# lightweight dev setups or constrained CI images).
+# Support both pydantic v2 (BaseSettings moved to pydantic-settings)
+# and pydantic v1 where BaseSettings lived in pydantic.
 try:
-    # pydantic v2 split: BaseSettings lives in pydantic-settings package
-    from pydantic_settings import BaseSettings  # type: ignore
+    from pydantic_settings import BaseSettings
 except Exception:
-    try:
-        # pydantic v1 compatibility: try to import BaseSettings from pydantic
-        import pydantic as _pydantic  # type: ignore
-        BaseSettings = getattr(_pydantic, "BaseSettings")
-    except Exception:
-        # Fallback minimal BaseSettings replacement: reads environment
-        # variables and optionally an env_file specified on the inner
-        # Config.env_file attribute. This does not implement full
-        # pydantic parsing/validation but is sufficient for basic env
-        # driven configuration during lightweight development runs.
-        class BaseSettings:  # minimal replacement
-            class Config:
-                env_file = None
+    from pydantic import BaseSettings
 
-            def __init__(self, **kwargs):
-                # Load env_file if present and file exists
-                env_file = getattr(self.Config, "env_file", None)
-                if env_file:
-                    try:
-                        env_path = Path(env_file)
-                        if env_path.exists():
-                            for ln in env_path.read_text(encoding="utf-8").splitlines():
-                                ln = ln.strip()
-                                if not ln or ln.startswith("#") or "=" not in ln:
-                                    continue
-                                k, v = ln.split("=", 1)
-                                k = k.strip()
-                                v = v.strip().strip('"').strip("'")
-                                # only set if not already in environment
-                                if k not in os.environ:
-                                    os.environ[k] = v
-                    except Exception:
-                        # ignore env file read errors in fallback
-                        pass
+# pydantic v2 exposes ConfigDict for model configuration; use it when available
+try:
+    # type: ignore
+    from pydantic import ConfigDict  # v2
+    HAS_CONFIGDICT = True
+except Exception:
+    HAS_CONFIGDICT = False
 
-                # Set attributes from annotations or class defaults
-                annotations = getattr(self.__class__, "__annotations__", {})
-                for name in annotations:
-                    # value priority: kwargs > ENV > class default
-                    if name in kwargs:
-                        val = kwargs[name]
-                    else:
-                        val = os.getenv(name)
-                        if val is None:
-                            val = getattr(self.__class__, name, None)
-                    # basic type coercion for common types
-                    ann = annotations.get(name)
-                    if isinstance(val, str) and ann is not None:
-                        try:
-                            if ann == int:
-                                val = int(val)
-                            elif ann == bool:
-                                val = val.lower() in ("1", "true", "yes", "on")
-                        except Exception:
-                            pass
-                    setattr(self, name, val)
+# Path to .env used by Settings
+ENV_PATH = str(Path(__file__).resolve().parent.parent / ".env")
+
+# Try to populate os.environ from the .env file early so reloader/child processes
+# and different import styles (app.main vs backend.app.main) reliably see the
+# same variables. This is a no-op if python-dotenv is not installed.
+try:
+    # Lazy import to avoid adding a hard dependency; this is optional and won't
+    # crash if python-dotenv isn't present.
+    from dotenv import load_dotenv
+    load_dotenv(ENV_PATH)
+except Exception:
+    pass
 
 class Settings(BaseSettings):
     AI_API_URL: str | None = None
@@ -110,11 +74,18 @@ class Settings(BaseSettings):
     ENFORCE_METADATA_SIGNATURE: bool = False
     # Require a txid-based nonce for registration; when true, backend will error if no Algorand tx is produced
     ENFORCE_TX_NONCE: bool = True
-
-    class Config:
-        # Always load .env from backend dir, even if run from parent
-        env_file = str(Path(__file__).resolve().parent.parent / ".env")
-        env_file_encoding = "utf-8"
+    # Configure settings depending on pydantic version.
+    if HAS_CONFIGDICT:
+        # pydantic v2
+        model_config = ConfigDict(extra="allow", env_file=ENV_PATH, env_file_encoding="utf-8")
+    else:
+        # pydantic v1
+        class Config:
+            # Allow extra environment variables so unknown keys don't raise
+            extra = "allow"
+            # Always load .env from backend dir, even if run from parent
+            env_file = ENV_PATH
+            env_file_encoding = "utf-8"
 
 settings = Settings()
 

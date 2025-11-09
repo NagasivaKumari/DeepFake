@@ -25,48 +25,43 @@ def approval_program():
     #     else a fallback derived from (sender || round) to ensure uniqueness.
     #   - Create reg_key box if missing and store Txn.sender() as the value.
     on_register = Seq([
-        # Allow 3,4 or 5 args: (register,H,value[,nonce[,embedding32]])
-        Assert(Or(Txn.application_args.length() == Int(3), Txn.application_args.length() == Int(4), Txn.application_args.length() == Int(5))),
+        Assert(Or(Txn.application_args.length() == Int(3), Txn.application_args.length() == Int(4))),
 
-        # Compute media_key on-chain
+        # Derive media_key on-chain so Algorand generates the key
         (media_key := ScratchVar(TealType.bytes)).store(Sha256(Txn.application_args[1])),
 
         # Ensure media box exists and stores provided value (CID/metadata)
         (media_exists := App.box_get(media_key.load())),
         If(
-            Not(media_exists.hasValue()),
+            media_exists.hasValue(),
+            Approve(),
             Seq(
                 Pop(App.box_create(media_key.load(), Len(Txn.application_args[2]))),
                 App.box_put(media_key.load(), Txn.application_args[2]),
+                Approve(),
             ),
         ),
 
-        # Determine nonce: app_args[3] if present, else fallback to (sender || round)
+        # Determine nonce: app_args[3] if present, else (sender || round)
         (nonce := ScratchVar(TealType.bytes)).store(
             If(
-                Txn.application_args.length() >= Int(4),
+                Txn.application_args.length() == Int(4),
                 Txn.application_args[3],
                 Concat(Txn.sender(), Itob(Global.round()))
             )
         ),
 
-        # Optional embedding arg (32 raw bytes) when provided as 5th arg
-        (embedding := ScratchVar(TealType.bytes)).store(
-            If(Txn.application_args.length() == Int(5), Txn.application_args[4], Bytes(""))
-        ),
-
-        # Compute registration key and enforce non-existence (first-to-register)
+        # Compute a unique per-submission registration key
         (reg_key := ScratchVar(TealType.bytes)).store(Sha256(Concat(media_key.load(), nonce.load()))),
+
+        # Create registration record if missing; store the submitter's address
         (reg_exists := App.box_get(reg_key.load())),
         If(
             reg_exists.hasValue(),
-            # If registration already exists, reject to preserve atomic first-to-register semantics
-            Reject(),
+            Approve(),
             Seq(
-                # compute length dynamically: Len(embedding) + 32 + 8
-                (calc_size := ScratchVar(TealType.uint64)).store(Len(embedding.load()) + Int(32) + Int(8)),
-                Pop(App.box_create(reg_key.load(), calc_size.load())),
-                App.box_put(reg_key.load(), Concat(embedding.load(), Txn.sender(), Itob(Global.round()))),
+                Pop(App.box_create(reg_key.load(), Int(32))),
+                App.box_put(reg_key.load(), Txn.sender()),
                 Approve(),
             ),
         ),
@@ -118,6 +113,7 @@ def approval_program():
                )
             )
         )
+
     @Subroutine(TealType.uint64)
     def verify_content():
         # Creates a proof record for a piece of content.

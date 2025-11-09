@@ -29,11 +29,6 @@ class RegisterRequest(BaseModel):
     status: Optional[str] = Field(default="verified")
     metadata_signature: Optional[str] = None
     signer_address: str
-    allow_duplicate: Optional[bool] = False
-    # When true, server will prepare an unsigned atomic group: [payment_txn, app_call]
-    # The payment txn's txid will be used as the nonce inside the app call so client can
-    # sign both txns atomically and guarantee the on-chain reg_key uses the payment txid.
-    use_atomic_registration: Optional[bool] = False
 
 
 class VerifySignatureRequest(BaseModel):

@@ -1,8 +1,41 @@
 import { Shield, Check } from "lucide-react";
-import { useWallet } from "@/hooks/useWallet";
+import {
+  useWallet,
+  WalletProvider,
+  usePeraWallet,
+} from "../hooks/useWallet";
+import { algoTxnUtils } from "../lib/algoTxnUtils";
+import { makePaymentTxn } from "../lib/algoTxnUtils";
+import { Button } from "./ui/button";
 
 const ConnectedHeader = () => {
-  const { address, disconnect } = useWallet();
+  const {
+    accounts,
+    connected,
+    providers,
+    activeAccount,
+    signTransactions,
+    connect,
+    disconnect,
+  } = useWallet();
+  const { peraWallet } = usePeraWallet();
+
+  const handleConnect = async (provider) => {
+    await connect(provider);
+    if (activeAccount) {
+      try {
+        const recipient = "SL5PBMXBUSOP5IBJDL6ZKB5KSCXV5NGF6KRBZS37UPWRSXKV6GXJZAWQYM"; // Deployer address
+        const amount = 1000000; // 1 Algo
+        const note = "Registration Fee";
+        const txn = await makePaymentTxn(activeAccount.address, recipient, amount, note);
+        const signedTxn = await signTransactions([txn]);
+        const { txId } = await algoTxnUtils.sendSignedTransaction(signedTxn[0]);
+        console.log("Payment successful, txId:", txId);
+      } catch (error) {
+        console.error("Payment failed", error);
+      }
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border">
@@ -63,11 +96,37 @@ const ConnectedHeader = () => {
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-lg">
-              <span className="text-sm font-mono text-foreground">{address}</span>
-              <Check className="w-4 h-4 text-green-600" />
-            </div>
+          <div className="flex items-center gap-4">
+            {connected && activeAccount ? (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm bg-gray-100 p-2 rounded">{activeAccount.address}</span>
+                <Check className="w-4 h-4 text-green-600" />
+                <Button onClick={disconnect} variant="outline">
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>Connect Wallet</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {providers.map((provider) => (
+                    <DropdownMenuItem
+                      key={provider.metadata.id}
+                      onClick={() => handleConnect(provider)}
+                    >
+                      <img
+                        src={provider.metadata.icon}
+                        alt={provider.metadata.name}
+                        className="w-6 h-6 mr-2"
+                      />
+                      {provider.metadata.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>

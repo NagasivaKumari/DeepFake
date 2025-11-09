@@ -24,28 +24,38 @@ async def ai_generate(req: AIGenerateRequest):
         output_file_path = os.path.join("backend", "data", image_filename) # Save in backend/data
 
         url = f"https://image.pollinations.ai/prompt/{req.prompt.replace(' ', '+')}"
-        response = requests.get(url)
+        try:
+            response = requests.get(url, timeout=30)
+        except Exception as e:
+            # Network/requests error -> return a clear 502
+            raise HTTPException(status_code=502, detail=f"Failed to fetch image from Pollinations.ai: {e}")
 
         if response.status_code == 200:
             # Ensure the directory exists
-            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
-            with open(output_file_path, "wb") as f:
-                f.write(response.content)
-            # Return a URL that the frontend can access. Assuming 'data' is served statically.
-            # For local development, this might need a static file server setup in FastAPI.
-            # For now, we'll return a path that the frontend can interpret.
-            # A more robust solution would be to serve this file via FastAPI or return a base64 encoded image.
-            # For simplicity, let's return a relative path that the frontend can use if it's served statically.
-            # Or, if the frontend is on the same host, it can directly request it.
-            # For now, let's return a simple URL that assumes the frontend can access it.
-            # A better approach for local dev might be to return a base64 image or serve it via FastAPI.
-            # Let's return a data URL for direct embedding in the frontend.
+            try:
+                os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+                with open(output_file_path, "wb") as f:
+                    f.write(response.content)
+            except Exception as e:
+                # File write issues shouldn't hide the generated image; still return data URL
+                print(f"[ai_generate] Warning: failed to persist image to {output_file_path}: {e}")
+
+            # Return a data URL so the frontend can embed it directly.
             import base64
-            encoded_image = base64.b64encode(response.content).decode('utf-8')
-            image_url = f"data:image/png;base64,{encoded_image}"
-            return {"result": image_url}
+            try:
+                encoded_image = base64.b64encode(response.content).decode('utf-8')
+                image_url = f"data:image/png;base64,{encoded_image}"
+                return {"result": image_url}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to encode image for frontend: {e}")
         else:
-            raise HTTPException(status_code=response.status_code, detail=f"Pollinations.ai API call failed: {response.text}")
+            # Propagate remote API error details
+            detail_text = None
+            try:
+                detail_text = response.text
+            except Exception:
+                detail_text = '<no response body>'
+            raise HTTPException(status_code=502, detail=f"Pollinations.ai API call failed ({response.status_code}): {detail_text}")
     elif req.type == "video":
         api_key = os.getenv("RAPIDAPI_KEY_VIDEO")
         if not api_key:

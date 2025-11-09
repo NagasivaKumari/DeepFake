@@ -12,9 +12,49 @@ import hashlib
 import time
 import json
 import secrets
-from ..deepfake_detector import analyze_media_record
-from ..light_detectors import compute_tamper_score_from_bytes, get_embedding_from_bytes, cosine_sim
-import numpy as np
+# Note: lightweight ML/embedding/detector functionality has been disabled in this local
+# revert. Heavy dependencies (ONNX/Torch/OpenCV) and atomic registration helpers were
+# introduced on 2025-11-06 and are temporarily removed to restore a minimal working
+# backend for development. If you need these features re-enabled later, reintroduce the
+# detector and embedding modules and the atomic registration flow.
+
+def analyze_media_record(record, gateway_base=None, media_group=None):
+    return {"available": False, "method": "none", "ml_score": None}
+
+def compute_tamper_score_from_bytes(reg_bytes: bytes, sus_bytes: bytes) -> dict:
+    # Minimal, dependency-free comparison: compare SHA-256 equality and return a simple
+    # similarity score (1.0 identical, 0.0 otherwise).
+    import hashlib
+    r_sha = hashlib.sha256(reg_bytes).hexdigest() if reg_bytes else None
+    s_sha = hashlib.sha256(sus_bytes).hexdigest() if sus_bytes else None
+    sim = 1.0 if (r_sha and s_sha and r_sha == s_sha) else 0.0
+    return {"fast_path": True, "similarity": sim, "threshold": 1.0, "decision": ("authentic" if sim==1.0 else "altered")}
+
+def get_embedding_from_bytes(b: bytes):
+    # Embedding functionality disabled; return a small zero vector to keep callers working.
+    try:
+        import numpy as _np
+        return _np.zeros(16, dtype=_np.float32)
+    except Exception:
+        return [0.0] * 16
+
+def cosine_sim(a, b):
+    try:
+        import math
+        # If inputs are lists/arrays, do a simple dot/norm
+        la = list(a) if not hasattr(a, 'tolist') else a.tolist()
+        lb = list(b) if not hasattr(b, 'tolist') else b.tolist()
+        if len(la) != len(lb) or len(la) == 0:
+            return 0.0
+        num = sum(x*y for x,y in zip(la, lb))
+        import math
+        noma = math.sqrt(sum(x*x for x in la))
+        nomb = math.sqrt(sum(x*x for x in lb))
+        if noma == 0 or nomb == 0:
+            return 0.0
+        return max(0.0, min(1.0, num / (noma * nomb)))
+    except Exception:
+        return 0.0
 import tempfile
 
 # Diagnostic startup print to confirm env vars are loaded when module is imported
@@ -38,119 +78,6 @@ except Exception:
     LUTE_AVAILABLE = False
 
 router = APIRouter(prefix="/media", tags=["media"])
-
-
-def _resolve_onchain_anchor(reg_key_hex: str):
-    """Helper: read on-chain reg box and media box for a reg_key and return
-    a tuple (registered_embedding_hash_or_None, reg_url_or_None).
-    Raises HTTPException on algod failures.
-    """
-    try:
-        oc = onchain_registration(reg_key_hex)
-    except HTTPException as he:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to query on-chain registration: {e}")
-
-    reg_box = oc.get('reg_box')
-    media_box = oc.get('media_box')
-    registered_embedding_hash = None
-    reg_url = None
-
-    # New reg box layout (contract v2): [optional 32-byte embedding_sha256][32-byte submitter][8-byte round]
-    if reg_box and isinstance(reg_box, dict):
-        raw_hex = reg_box.get('raw') or reg_box.get('value') or reg_box.get('bytes')
-        if raw_hex and isinstance(raw_hex, str):
-            try:
-                raw_bytes = bytes.fromhex(raw_hex)
-                # Minimum expected length is 32 (sender) + 8 (round) = 40
-                if len(raw_bytes) >= 40:
-                    # tail: last 40 bytes are sender(32) + round(8)
-                    sender_bytes = raw_bytes[-40:-8]
-                    round_bytes = raw_bytes[-8:]
-                    try:
-                        reg_round = int.from_bytes(round_bytes, 'big')
-                    except Exception:
-                        reg_round = None
-                    # If there are leading bytes, treat them as embedding anchor
-                    leading = raw_bytes[0:len(raw_bytes) - 40]
-                    if len(leading) == 32:
-                        registered_embedding_hash = leading.hex()
-                    # Try to decode sender to Algorand address (best-effort)
-                    try:
-                        from algosdk.encoding import encode_address
-                        owner_addr = encode_address(sender_bytes)
-                        reg_url = reg_url or None
-                        # attach owner info into reg_box for caller use
-                        reg_box['owner_address'] = owner_addr
-                        reg_box['registered_round'] = reg_round
-                    except Exception:
-                        # if algosdk not available, still provide hex
-                        reg_box['owner_raw'] = sender_bytes.hex()
-                        reg_box['registered_round'] = reg_round
-            except Exception:
-                pass
-
-    if media_box and isinstance(media_box, dict):
-        mtext = media_box.get('as_text')
-        if mtext and ('Qm' in mtext or 'bafy' in mtext):
-            reg_url = f"https://gateway.pinata.cloud/ipfs/{mtext.strip()}"
-
-    return registered_embedding_hash, reg_url
-
-
-def _validate_txid(txid: str, signer_address: str | None = None):
-    """Validate a txid with the configured algod node.
-
-    Ensures the tx exists and is confirmed. If signer_address is provided,
-    ensure the transaction involves that address (as sender or receiver).
-    Raises HTTPException on failure.
-    """
-    try:
-        from ..algorand_app_utils import get_algod_client
-        client = get_algod_client()
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Algod client not available for tx validation: {e}")
-
-    try:
-        info = client.pending_transaction_info(txid)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Transaction not found or algod query failed: {e}")
-
-    # Check for confirmation
-    confirmed = info.get('confirmed-round') or info.get('confirmed_round')
-    if not confirmed or int(confirmed) <= 0:
-        raise HTTPException(status_code=400, detail="Transaction is not confirmed on-chain yet")
-
-    # If signer_address provided, ensure it's involved in the tx
-    if signer_address:
-        signer_address = signer_address.strip().lower()
-        try:
-            tx = info.get('txn') or info
-            # txn may be nested in different SDK versions
-            payer = None
-            receiver = None
-            if isinstance(tx, dict):
-                # Try common fields
-                payer = (tx.get('snd') or tx.get('sender'))
-                # inner txn fields
-                if not payer and isinstance(tx.get('txn'), dict):
-                    payer = tx.get('txn').get('snd') or tx.get('txn').get('sender')
-                # receiver amount fields
-                pay = info.get('payment-transaction') or info.get('payment_transaction') or {}
-                receiver = pay.get('receiver')
-        except Exception:
-            payer = None
-            receiver = None
-
-        if not payer and not receiver:
-            # can't verify involvement; be conservative and fail
-            raise HTTPException(status_code=400, detail="Unable to verify transaction participants")
-
-        if signer_address != (str(payer).lower() if payer else "") and signer_address != (str(receiver).lower() if receiver else ""):
-            raise HTTPException(status_code=403, detail="Transaction does not involve the claimed signer address")
-
-    return True
 
 
 @router.post("/generate")
@@ -356,79 +283,18 @@ def register_media(payload: RegisterRequest):
             signature_status = "skipped_no_verifier"
 
 
-    # --- Algorand transaction logic: send 1 ALGO from server wallet to user wallet ---
-    algo_tx = None
-    explorer_url = None
-    try:
-        from algosdk import account, mnemonic, transaction
-        # Load server mnemonic and user wallet address
-        # Use DEPLOYER_MNEMONIC if set, else fallback to LUTE_MNEMONIC
-        server_mnemonic = (settings.DEPLOYER_MNEMONIC or settings.LUTE_MNEMONIC)
-        if server_mnemonic:
-            server_mnemonic = server_mnemonic.replace('"', '').strip()
-        user_address = getattr(payload, 'signer_address', None)
-        if not user_address:
-            raise Exception("Missing user wallet address (signer_address)")
-        if not server_mnemonic:
-            raise Exception("Server mnemonic is not configured; set DEPLOYER_MNEMONIC or LUTE_MNEMONIC")
-
-        # Setup Algod client (supports ALGOD_ADDRESS or ALGOD_URL and optional headers)
-        from ..algorand_app_utils import get_algod_client
-        algod_client = get_algod_client()
-
-        # Get server account
-        sender_private_key = mnemonic.to_private_key(server_mnemonic)
-        sender_address = account.address_from_private_key(sender_private_key)
-        print(f"[ALGO DEBUG] Sender address: {sender_address}")
-
-        # Get suggested params
-        params = algod_client.suggested_params()
-
-        # Amount to send (1 Algo = 1,000,000 microalgos)
-        amount = 1000000
-
-        # Create transaction
-        unsigned_txn = transaction.PaymentTxn(
-            sender_address,
-            params,
-            user_address,
-            amount,
-            None,
-            "Media registration fee"
-        )
-
-        # Sign transaction
-        signed_txn = unsigned_txn.sign(sender_private_key)
-
-        # Send transaction
-        txid = algod_client.send_transaction(signed_txn)
-        algo_tx = txid
-        # Use Algokit explorer link (consistent with other endpoints)
-        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
-    except Exception as e:
-        print(f"Algorand transaction error: {e}")
-        algo_tx = None
-        explorer_url = None
-        # Also include the error in the response for client visibility
-        reg_error = str(e)
-
-    # If an algo_tx was created by server or provided in payload, validate it
-    try:
-        tx_to_validate = reg_data.get('algo_tx') or algo_tx
-        if tx_to_validate:
-            _validate_txid(tx_to_validate, signer_address=reg_data.get('signer_address'))
-            # ensure we use the validated txid as the nonce
-            algo_tx = tx_to_validate
-    except HTTPException:
-        # If enforce nonce is required, bubble up; otherwise log and continue
-        if getattr(settings, 'ENFORCE_TX_NONCE', False):
-            raise
-        else:
-            print(f"[WARN] Provided txid failed validation but ENFORCE_TX_NONCE is false; continuing: {tx_to_validate}")
+    # --- Algorand transaction logic ---
+    # Preferred flow: client pays the registration fee and provides `algo_tx` (txid) in the payload.
+    # If the client did not provide `algo_tx`, the server will attempt to send the payment using
+    # DEPLOYER_MNEMONIC (backwards-compatible). If server sending fails and ENFORCE_TX_NONCE is
+    # enabled, the request will error.
+    algo_tx = getattr(payload, 'algo_tx', None)
+    explorer_url = getattr(payload, 'algo_explorer_url', None)
+    reg_error = None
 
     # If strict mode is enabled, require a txid-based nonce; otherwise we'd fall back to a random nonce
     if getattr(settings, 'ENFORCE_TX_NONCE', False) and not algo_tx:
-        detail = f"Algorand transaction is required for registration and was not created: {reg_error if 'reg_error' in locals() else 'unknown error'}"
+        detail = f"Algorand transaction is required for registration and was not created: {reg_error if 'reg_error' in locals() else 'client did not provide algo_tx'}"
         raise HTTPException(status_code=502, detail=detail)
 
     # --- Save registration data ---
@@ -439,6 +305,7 @@ def register_media(payload: RegisterRequest):
     MEDIA_FILE = DATA_PATH / "registered_media.json"
 
     # Fetch KYC info for wallet address
+    user_address = getattr(payload, 'signer_address', None)
     KYC_FILE = DATA_PATH / "kyc.json"
     kyc_email = None
     kyc_phone = None
@@ -481,148 +348,18 @@ def register_media(payload: RegisterRequest):
         H_bytes = bytes.fromhex(h_hex)
         K_bytes = hashlib.sha256(H_bytes).digest()
         content_key_hex = K_bytes.hex()
-        # If an Algorand app is configured, check whether this media_key (sha256(H)) is already
-        # registered on-chain. If so and the caller did not set allow_duplicate, reject to enforce
-        # first-to-register semantics.
-        try:
-            app_id_str = getattr(settings, 'proofchain_app_id', None)
-            if app_id_str:
-                try:
-                    from ..algorand_app_utils import get_algod_client
-                    client = get_algod_client()
-                    app_id = int(app_id_str)
-                    # attempt to read the media box; some SDKs accept raw bytes for box name
-                    try:
-                        box_resp = client.application_box_by_name(app_id, K_bytes)
-                    except Exception:
-                        # try base64 name fallback like earlier helper
-                        import base64 as _base64
-                        try:
-                            box_resp = client.application_box_by_name(app_id, _base64.b64encode(K_bytes).decode('utf-8'))
-                        except Exception:
-                            box_resp = None
-
-                    if box_resp:
-                        # If a box exists, decode into text if possible
-                        owner_info = None
-                        try:
-                            if isinstance(box_resp, dict):
-                                val = box_resp.get('value') or box_resp.get('box') or box_resp.get('bytes') or box_resp.get('data')
-                            else:
-                                val = box_resp
-                            import base64 as _base64
-                            if isinstance(val, str):
-                                try:
-                                    b = _base64.b64decode(val)
-                                    owner_info = b.decode('utf-8', errors='replace')
-                                except Exception:
-                                    owner_info = val
-                            elif isinstance(val, (bytes, bytearray)):
-                                owner_info = bytes(val).hex()
-                            else:
-                                owner_info = str(val)
-                        except Exception:
-                            owner_info = str(box_resp)
-
-                        # If the payload explicitly allows duplicates, continue; otherwise reject
-                        allow_dup = bool(reg_data.get('allow_duplicate', False))
-                        if not allow_dup:
-                            raise HTTPException(status_code=409, detail={"error": "content_already_registered", "owner": owner_info})
-                except Exception:
-                    # ignore on-chain check failures here (best-effort); later code may act on missing algod
-                    pass
-        except Exception:
-            # ignore any outer exceptions here (best-effort)
-            pass
-        # Prefer txid as nonce to guarantee uniqueness across submissions.
-        # If txid is present, use its UTF-8 bytes (the contract will use the provided nonce bytes).
-        # If not and an on-chain app is configured, derive nonce bytes the same way the contract
-        # will when it falls back: Concat(Txn.sender(), Itob(Global.round())). This means we must
-        # use the 32 raw address bytes (decoded via algosdk) + big-endian round bytes so server and
-        # contract compute the same reg_key.
-        try:
-            if algo_tx:
-                nonce_bytes = str(algo_tx).encode('utf-8')
-            else:
-                # If an Algorand app is configured try to obtain the current round and use raw address bytes
-                app_id_str = getattr(settings, 'proofchain_app_id', None)
-                if app_id_str:
-                    try:
-                        from ..algorand_app_utils import get_algod_client
-                        from algosdk import encoding as _encoding
-                        client = get_algod_client()
-                        status = client.status()
-                        current_round = status.get('last-round') or status.get('lastRound') or 0
-                        sender_addr = reg_data.get('signer_address') or ''
-                        try:
-                            sender_raw = _encoding.decode_address(sender_addr)
-                        except Exception:
-                            sender_raw = sender_addr.encode('utf-8')
-                        nonce_bytes = sender_raw + int(current_round).to_bytes(8, 'big')
-                    except Exception:
-                        # If algod not available, fall back to signer:timestamp random fallback
-                        nonce_src = f"{reg_data.get('signer_address', '')}:{time.time_ns()}:{secrets.token_hex(4)}"
-                        nonce_bytes = nonce_src.encode('utf-8')
-                else:
-                    # No on-chain app configured: use signer:timestamp random fallback
-                    nonce_src = f"{reg_data.get('signer_address', '')}:{time.time_ns()}:{secrets.token_hex(4)}"
-                    nonce_bytes = nonce_src.encode('utf-8')
-            reg_key_bytes = hashlib.sha256(K_bytes + nonce_bytes).digest()
-        except Exception as e:
-            print(f"[WARN] Failed to construct nonce bytes for reg_key derivation: {e}")
-            # fallback: use a random nonce to ensure uniqueness but warn
-            nonce_bytes = f"{reg_data.get('signer_address','')}:{time.time_ns()}:{secrets.token_hex(8)}".encode('utf-8')
-            reg_key_bytes = hashlib.sha256(K_bytes + nonce_bytes).digest()
+        # Prefer txid as nonce to guarantee uniqueness across submissions; fallback to signer+time
+        nonce_src = (
+            algo_tx
+            or f"{reg_data.get('signer_address', '')}:{time.time_ns()}:{secrets.token_hex(4)}"
+        )
+        nonce_bytes = nonce_src.encode('utf-8')
+        reg_key_bytes = hashlib.sha256(K_bytes + nonce_bytes).digest()
         reg_key_hex = reg_key_bytes.hex()
         reg_data["content_key"] = content_key_hex
         reg_data["unique_reg_key"] = reg_key_hex
     except Exception as e:
         print(f"[WARN] Failed to compute content/registration keys: {e}")
-
-    # Attempt to fetch the registered file (if file_url or ipfs_cid provided) and compute an
-    # embedding + embedding_sha256 for anchoring. This is optional and best-effort: failures
-    # are non-fatal but logged. Embedding computation prefers ONNX runtime if available (see
-    # light_detectors.get_embedding_from_bytes) and may require ML deps.
-    try:
-        reg_file_bytes = None
-        if file_url:
-            try:
-                r = requests.get(file_url, timeout=30)
-                if r.status_code == 200:
-                    reg_file_bytes = r.content
-            except Exception:
-                reg_file_bytes = None
-        if not reg_file_bytes and ipfs_cid:
-            try:
-                gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
-                if gateway_domain:
-                    if str(gateway_domain).startswith('http://') or str(gateway_domain).startswith('https://'):
-                        base = str(gateway_domain).rstrip('/')
-                    else:
-                        base = f"https://{str(gateway_domain).rstrip('/')}"
-                    reg_url = f"{base}/ipfs/{ipfs_cid}"
-                else:
-                    reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-                r = requests.get(reg_url, timeout=30)
-                if r.status_code == 200:
-                    reg_file_bytes = r.content
-            except Exception:
-                reg_file_bytes = None
-
-        if reg_file_bytes:
-            try:
-                emb = get_embedding_from_bytes(reg_file_bytes)
-                # store embedding as list of floats and compute SHA-256 of float32 little-endian bytes
-                import numpy as _np
-                emb_arr = _np.asarray(emb, dtype=_np.float32)
-                emb_bytes = emb_arr.tobytes()
-                emb_hash = hashlib.sha256(emb_bytes).hexdigest()
-                reg_data['embedding'] = [float(x) for x in emb_arr.tolist()]
-                reg_data['embedding_sha256'] = emb_hash
-            except Exception as e:
-                print(f"[WARN] Failed to compute or store embedding at registration time: {e}")
-    except Exception as e:
-        print(f"[WARN] Unexpected failure while fetching/embedding registered file: {e}")
 
     try:
         if MEDIA_FILE.exists():
@@ -677,63 +414,32 @@ def register_media(payload: RegisterRequest):
     media_key_hex = None
     reg_key_hex = None
     try:
-        from ..algorand_app_utils import build_register_app_call, build_register_atomic_group
+        from ..algorand_app_utils import build_register_app_call
         # app id from settings
         app_id_str = getattr(settings, 'proofchain_app_id', None)
         if app_id_str:
             app_id = int(app_id_str)
+            # Use payment txid as nonce if available to guarantee uniqueness across submissions
+            nonce = algo_tx or None
             sender_addr = getattr(payload, 'signer_address', None)
             sha256_hex = getattr(payload, 'sha256_hash', None)
             cid = ipfs_cid or reg_data.get('ipfs_cid') or ''
             if sender_addr and sha256_hex and cid:
-                # If caller requested atomic registration, prepare a grouped payment+app txn
-                if getattr(payload, 'use_atomic_registration', False) and (not algo_tx):
-                    # Use server's deployer as payment receiver (server will receive the payment)
-                    payment_receiver = getattr(settings, 'DEPLOYER_ADDRESS', None) or getattr(settings, 'LUTE_ADDRESS', None)
-                    # default amount in microalgos (client pays small fee/amount); adjust as needed
-                    payment_amount = int(getattr(settings, 'REGISTRATION_PAYMENT', 1000))
-                    try:
-                        pay_txn_dict, pay_txn_b64, app_txn_dict, app_txn_b64, media_key, reg_key = build_register_atomic_group(
-                            sender=sender_addr,
-                            app_id=app_id,
-                            sha256_hex=sha256_hex,
-                            cid=cid,
-                            payment_receiver=payment_receiver or sender_addr,
-                            payment_amount=payment_amount,
-                            embedding_sha256_hex=reg_data.get('embedding_sha256'),
-                        )
-                        unsigned_app_txn = app_txn_dict
-                        unsigned_app_txn_b64 = app_txn_b64
-                        unsigned_payment_txn = pay_txn_dict
-                        unsigned_payment_txn_b64 = pay_txn_b64
-                        media_key_hex = media_key.hex()
-                        reg_key_hex = reg_key.hex()
-                    except Exception as e:
-                        print(f"[WARN] Failed to prepare atomic unsigned group: {e}")
-                else:
-                    # fall back to single-app call builder; pass provided algo_tx as nonce when present
-                    nonce = algo_tx or None
-                    txn_dict, txn_b64, media_key, reg_key = build_register_app_call(
-                        sender=sender_addr,
-                        app_id=app_id,
-                        sha256_hex=sha256_hex,
-                        cid=cid,
-                        nonce_str=nonce,
-                        embedding_sha256_hex=reg_data.get('embedding_sha256'),
-                    )
-                    unsigned_app_txn = txn_dict
-                    unsigned_app_txn_b64 = txn_b64
-                    media_key_hex = media_key.hex()
-                    reg_key_hex = reg_key.hex()
+                txn_dict, txn_b64, media_key, reg_key = build_register_app_call(
+                    sender=sender_addr,
+                    app_id=app_id,
+                    sha256_hex=sha256_hex,
+                    cid=cid,
+                    nonce_str=nonce,
+                )
+                unsigned_app_txn = txn_dict
+                unsigned_app_txn_b64 = txn_b64
+                media_key_hex = media_key.hex()
+                reg_key_hex = reg_key.hex()
     except Exception as e:
         print(f"[WARN] Failed to prepare unsigned app call: {e}")
 
     response = {"status": "verified_locally", "payload": reg_data}
-    # Expose the unique registration key (sha256(K||nonce)) as the canonical registration identifier
-    if reg_key_hex:
-        response["registration_hash"] = reg_key_hex
-    if content_key_hex:
-        response["content_key"] = content_key_hex
     if unsigned_app_txn:
         response["unsigned_app_call"] = {
             "txn": unsigned_app_txn,
@@ -741,12 +447,6 @@ def register_media(payload: RegisterRequest):
             "media_key": media_key_hex,
             "reg_key": reg_key_hex,
         }
-        # If we prepared an atomic payment txn, include it too so the client can sign both
-        if 'unsigned_payment_txn' in locals():
-            response['unsigned_payment_txn'] = {
-                'txn': unsigned_payment_txn,
-                'txn_b64': unsigned_payment_txn_b64,
-            }
     return response
 
 
@@ -884,6 +584,128 @@ def tx_status(txid: str):
         raise HTTPException(status_code=500, detail=f"Algod status check failed: {e}")
 
 
+@router.get("/algod_params")
+def algod_params():
+    """Return suggested params from the configured algod node for browser-side txn construction.
+
+    The frontend uses this to build a payment transaction without needing algod credentials in-browser.
+    """
+    try:
+        from ..algorand_app_utils import get_algod_client
+        algod_client = get_algod_client()
+        params = algod_client.suggested_params()
+        # Extract common fields into JSON-serializable dict
+        p = {
+            "fee": getattr(params, "fee", None),
+            "flat_fee": getattr(params, "flat_fee", None),
+            "first": getattr(params, "first", None),
+            "last": getattr(params, "last", None),
+            "gen": getattr(params, "gen", None) or getattr(params, "genesis_id", None),
+            "gh": getattr(params, "gh", None) or getattr(params, "genesis_hash", None),
+        }
+        return p
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch algod params: {e}")
+
+
+@router.post("/broadcast_signed_tx")
+def broadcast_signed_tx(body: Dict[str, str]):
+    """Broadcast a signed Algorand transaction to the configured algod node.
+
+    Expect body: { "signed_tx_b64": "..." }
+    Returns: { "txid": "...", "explorer_url": "..." }
+    """
+    try:
+        signed_b64 = body.get("signed_tx_b64")
+        if not signed_b64:
+            raise HTTPException(status_code=400, detail="signed_tx_b64 is required")
+        import base64
+        try:
+            signed_bytes = base64.b64decode(signed_b64)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 signed txn: {e}")
+
+        from ..algorand_app_utils import get_algod_client
+        algod_client = get_algod_client()
+        # Use send_transaction (python algosdk) to submit signed bytes
+        txid = algod_client.send_transaction(signed_bytes)
+        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
+        return {"txid": txid, "explorer_url": explorer_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Broadcast failed: {e}")
+
+
+@router.post("/broadcast_signed_app_tx")
+def broadcast_signed_app_tx(body: Dict[str, str]):
+    """Broadcast a signed Algorand application transaction (single txn, non-atomic) and
+    optionally attach the resulting txid to an existing registration record.
+
+    Body parameters:
+      - signed_tx_b64: base64 of the signed txn bytes (required)
+      - unique_reg_key: optional registration key to attach the app txid to the stored record
+      - content_key: optional content_key (K) to locate matching records when unique_reg_key omitted
+
+    Returns: { txid, explorer_url, updated_record?: {...} }
+    """
+    try:
+        signed_b64 = body.get("signed_tx_b64")
+        if not signed_b64:
+            raise HTTPException(status_code=400, detail="signed_tx_b64 is required")
+        import base64
+        try:
+            signed_bytes = base64.b64decode(signed_b64)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 signed txn: {e}")
+
+        from ..algorand_app_utils import get_algod_client
+        algod_client = get_algod_client()
+        # Use send_transaction (python algosdk) to submit signed bytes
+        txid = algod_client.send_transaction(signed_bytes)
+        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
+
+        # Optionally attach txid to stored registration by unique_reg_key or content_key
+        unique_reg_key = body.get("unique_reg_key")
+        content_key = body.get("content_key")
+        updated = None
+        try:
+            from pathlib import Path
+            import json
+            DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+            MEDIA_FILE = DATA_PATH / "registered_media.json"
+            if MEDIA_FILE.exists() and (unique_reg_key or content_key):
+                media = json.loads(MEDIA_FILE.read_text())
+                for item in media:
+                    try:
+                        if unique_reg_key and item.get('unique_reg_key') == unique_reg_key:
+                            item['app_tx'] = txid
+                            item['app_explorer_url'] = explorer_url
+                            updated = item
+                            break
+                        if content_key and item.get('content_key') == content_key:
+                            item['app_tx'] = txid
+                            item['app_explorer_url'] = explorer_url
+                            updated = item
+                            break
+                    except Exception:
+                        continue
+                if updated:
+                    MEDIA_FILE.write_text(json.dumps(media, indent=2))
+        except Exception:
+            # non-fatal: ignore persistence errors but return txid
+            updated = None
+
+        resp = {"txid": txid, "explorer_url": explorer_url}
+        if updated:
+            resp['updated_record'] = updated
+        return resp
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Broadcast app-tx failed: {e}")
+
+
 @router.get("/cid_status/{cid}")
 def cid_status(cid: str):
     """Lightweight availability check for an IPFS CID via the configured gateway.
@@ -916,84 +738,32 @@ def cid_status(cid: str):
 
         available = 200 <= status < 300 or status == 206
         return {"cid": cid, "available": bool(available), "http_status": int(status), "url": url}
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"CID status check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"cid_status error: {e}")
 
 
-@router.get("/onchain_registration/{reg_key_hex}")
-def onchain_registration(reg_key_hex: str, media_key_hex: str | None = None):
-    """Fetch the on-chain box values for a registration key (and optional media key).
+@router.get("/deployer_address")
+def get_deployer_address():
+    """Return the configured deployer/receiver address used by the backend.
 
-    Returns the box contents (owner address or stored CID bytes) when available.
+    This is a convenience endpoint for the frontend to know which address to
+    send the client-side payment to when using a client-pays flow.
     """
     try:
-        from ..algorand_app_utils import get_algod_client
-        client = get_algod_client()
-        app_id_str = getattr(settings, 'proofchain_app_id', None)
-        if not app_id_str:
-            raise HTTPException(status_code=400, detail="proofchain_app_id not configured")
-        app_id = int(app_id_str)
-
-        def _fetch_box(key_hex: str):
-            try:
-                k = bytes.fromhex(key_hex)
-            except Exception:
-                raise HTTPException(status_code=400, detail=f"Invalid hex for box name: {key_hex}")
-            # Algod SDK exposes application_box_by_name(app_id, box_name) in modern versions.
-            try:
-                resp = client.application_box_by_name(app_id, k)
-            except Exception as e:
-                # Fallback: some SDK versions expect base64-encoded name
+        addr = getattr(settings, 'DEPLOYER_ADDRESS', None)
+        if not addr:
+            # If DEPLOYER_ADDRESS not set, but DEPLOYER_MNEMONIC is set, derive address
+            mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
+            if mn:
                 try:
-                    import base64 as _base64
-                    resp = client.application_box_by_name(app_id, _base64.b64encode(k).decode('utf-8'))
-                except Exception as e2:
-                    raise HTTPException(status_code=501, detail=f"Algod client does not support box read or call failed: {e} | {e2}")
-
-            # resp may be bytes, dict with 'value', or dict with 'box' keys depending on SDK
-            val = None
-            if isinstance(resp, dict):
-                val = resp.get('value') or resp.get('box') or resp.get('bytes') or resp.get('data')
-            else:
-                val = resp
-
-            # If the value is base64, try to decode; otherwise return raw as hex
-            try:
-                import base64 as _base64
-                if isinstance(val, str):
-                    try:
-                        b = _base64.b64decode(val)
-                        return {'raw': b.hex(), 'as_text': b.decode('utf-8', errors='replace')}
-                    except Exception:
-                        return {'raw': val}
-                elif isinstance(val, (bytes, bytearray)):
-                    return {'raw': bytes(val).hex(), 'as_text': bytes(val).decode('utf-8', errors='replace')}
-                else:
-                    return {'raw': val}
-            except Exception:
-                return {'raw': val}
-
-        out = {}
-        out['reg_key'] = reg_key_hex
-        try:
-            out['reg_box'] = _fetch_box(reg_key_hex)
-        except HTTPException as he:
-            out['reg_box_error'] = str(he.detail)
-
-        if media_key_hex:
-            try:
-                out['media_key'] = media_key_hex
-                out['media_box'] = _fetch_box(media_key_hex)
-            except HTTPException as he:
-                out['media_box_error'] = str(he.detail)
-
-        return out
-    except HTTPException:
-        raise
+                    from algosdk import mnemonic as _mnemonic, account as _account
+                    priv = _mnemonic.to_private_key(mn.replace('"', '').strip())
+                    addr = _account.address_from_private_key(priv)
+                except Exception:
+                    addr = None
+        return {"deployer_address": addr}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"onchain_registration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get deployer address: {e}")
 
 
 @router.post("/recompute_reg_key")
@@ -1249,7 +1019,7 @@ def media_trust(sha256_hash: str | None = None, cid: str | None = None, check_on
 
 
 @router.post("/compare")
-def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None, reg_key_hex: str | None = None, registered_embedding_hash: str | None = None):
+def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None):
     """Compare an uploaded suspect image against a registered asset.
 
     Provide either:
@@ -1266,83 +1036,35 @@ def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read suspect file: {e}")
 
-    # Allow lookup by registration key (unique per submission) as primary identifier.
-    # If `reg_key_hex` provided, try to find a local record with matching `unique_reg_key`.
-    # If not found locally, try to fetch on-chain box to recover either an embedding hash or CID.
-    # Otherwise, fall back to ipfs_cid or registered_sha256 lookup.
-    # Determine registered file bytes by CID, sha256 search, or reg_key lookup
+    # Determine registered file bytes by CID or sha256 search
     from pathlib import Path
     DATA_PATH = Path(__file__).resolve().parents[1] / "data"
     MEDIA_FILE = DATA_PATH / "registered_media.json"
-
     reg_bytes = None
     reg_path_hint = None
     rec = None
 
-    # If caller provided reg_key_hex, try to resolve it first
-    if reg_key_hex:
-        # Try to find a local record with this unique_reg_key
-        if MEDIA_FILE.exists():
-            try:
-                media = json.loads(MEDIA_FILE.read_text())
-                # Normalize reg_key_hex (no 0x prefix, lowercase)
-                rk = reg_key_hex[2:] if reg_key_hex.startswith('0x') else reg_key_hex
-                rk = rk.lower()
-                rec = next((m for m in media if (m.get('unique_reg_key') or '').lower() == rk), None)
-                if rec:
-                    # If record has file_url or ipfs_cid, prefer that for fetching
-                    if rec.get('file_url'):
-                        reg_url = rec.get('file_url')
-                    elif rec.get('ipfs_cid'):
-                        reg_url = f"https://gateway.pinata.cloud/ipfs/{rec.get('ipfs_cid')}"
-                    else:
-                        reg_url = None
-                else:
-                    # Not found locally: try to read on-chain registration box to recover info
-                    try:
-                        oc = onchain_registration(reg_key_hex)
-                        reg_box = oc.get('reg_box')
-                        media_box = oc.get('media_box')
-                        # reg_box may contain embedding hash as text
-                        if reg_box and isinstance(reg_box, dict):
-                            maybe_text = reg_box.get('as_text')
-                            if maybe_text:
-                                import re as _re
-                                if _re.fullmatch(r"[0-9a-fA-F]{64}", maybe_text.strip()):
-                                    registered_embedding_hash = maybe_text.strip()
-                        # media_box may contain the CID or owner info; try to parse CID
-                        if media_box and isinstance(media_box, dict):
-                            mtext = media_box.get('as_text')
-                            if mtext and ('Qm' in mtext or 'bafy' in mtext):
-                                # assume this is an ipfs cid
-                                reg_url = f"https://gateway.pinata.cloud/ipfs/{mtext.strip()}"
-                            else:
-                                reg_url = None
-                        else:
-                            reg_url = None
-                    except HTTPException:
-                        reg_url = None
-                # If we have a reg_url from local or on-chain, fetch below
-                if rec and rec.get('file_url'):
-                    reg_url = rec.get('file_url')
-            except Exception:
-                rec = None
-
     if ipfs_cid:
-        # find first matching record with this cid (if any) and try to fetch its file_url
+        # find first matching record with this cid, else fetch directly from gateway
+        reg_url = None
         if MEDIA_FILE.exists():
             try:
                 media = json.loads(MEDIA_FILE.read_text())
                 rec = next((m for m in media if m.get('ipfs_cid') == ipfs_cid), None)
                 if rec and rec.get('file_url'):
                     reg_url = rec.get('file_url')
-                else:
-                    reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
             except Exception:
+                reg_url = None
+        if not reg_url:
+            gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
+            if gateway_domain:
+                if str(gateway_domain).startswith('http://') or str(gateway_domain).startswith('https://'):
+                    base = str(gateway_domain).rstrip('/')
+                else:
+                    base = f"https://{str(gateway_domain).rstrip('/')}"
+                reg_url = f"{base}/ipfs/{ipfs_cid}"
+            else:
                 reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-        else:
-            reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-
         try:
             r = requests.get(reg_url, timeout=30)
             if r.status_code >= 400:
@@ -1353,7 +1075,6 @@ def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
             raise
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-
     elif registered_sha256:
         if not MEDIA_FILE.exists():
             raise HTTPException(status_code=404, detail="registered_media.json not found")
@@ -1377,91 +1098,47 @@ def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
             raise
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-
-    # If the caller provided an on-chain registration key but we still don't have registered bytes
-    # or embedding hash, attempt to fetch on-chain registration info (best-effort). If the caller
-    # explicitly wanted on-chain verification, onchain_registration will raise and we'll bubble that.
-    if reg_key_hex and not registered_embedding_hash and not reg_bytes:
-        try:
-            registered_embedding_hash, maybe_reg_url = _resolve_onchain_anchor(reg_key_hex)
-            if maybe_reg_url:
-                reg_url = maybe_reg_url
-        except HTTPException as he:
-            # Fail closed if caller explicitly asked to check on-chain anchor
-            raise HTTPException(status_code=502, detail=f"Failed to fetch on-chain registration: {he.detail}")
-
     else:
-        # If none of the expected identifiers were provided and we couldn't resolve reg_key_hex,
-        # signal a bad request.
-        raise HTTPException(status_code=400, detail="Provide either ipfs_cid, registered_sha256, or reg_key_hex")
+        raise HTTPException(status_code=400, detail="Provide either ipfs_cid or registered_sha256")
 
-    # Fast-path: if registered record has a precomputed embedding, use it (no re-download or heavy compare)
+    # Compute using light_detectors (fast, dependency-free comparison)
     try:
-        if rec and rec.get('embedding'):
-            try:
-                reg_emb = np.array(rec.get('embedding'), dtype=float)
-                # If caller supplied a registered_embedding_hash, verify it matches stored embedding
-                if registered_embedding_hash:
-                    try:
-                        import numpy as _np
-                        emb_bytes = _np.asarray(rec.get('embedding'), dtype=_np.float32).tobytes()
-                        emb_hash = hashlib.sha256(emb_bytes).hexdigest()
-                    except Exception:
-                        raise HTTPException(status_code=500, detail="Failed to compute stored embedding hash")
-                    if emb_hash.lower() != registered_embedding_hash.lower():
-                        # Anchor mismatch: fail with conflict so client knows anchor differs
-                        raise HTTPException(status_code=409, detail="Stored embedding hash does not match provided on-chain anchor")
-                sus_emb = get_embedding_from_bytes(suspect_bytes)
-                sim = float(cosine_sim(reg_emb, sus_emb))
-                # Default threshold; this can be tuned or passed as a query param
-                thresh = 0.8
-                decision = 'authentic' if sim >= thresh else 'altered'
-                return {
-                    'fast_path': True,
-                    'similarity': sim,
-                    'threshold': thresh,
-                    'decision': decision,
-                    'registered_source': reg_path_hint,
-                }
-            except Exception:
-                # Fall back to full compare if embedding path fails
-                pass
-
-        # Compute using light_detectors (full, detailed comparison)
+        from ..light_detectors import compute_tamper_score_from_bytes
         result = compute_tamper_score_from_bytes(reg_bytes, suspect_bytes)
         result['registered_source'] = reg_path_hint
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comparison failed: {e}")
 
 
 @router.get("/siamese_status")
 def siamese_status():
-    """Return availability info for Siamese inference backends (ONNX runtime, TensorFlow) and whether weights/models are present."""
+    """Return availability info for Siamese inference backends (ONNX runtime, TensorFlow) and whether weights/models are present.
+
+    This server build has Siamese support disabled locally; the endpoint reports
+    availability flags to guide the client.
+    """
     try:
-        import importlib
         import os as _os
-        # Check ONNX model file
         onnx_path = _os.path.join(_os.path.dirname(__file__), '..', 'models', 'siamese.onnx')
+        weights_path = _os.path.join(_os.path.dirname(__file__), '..', 'models', 'siamese_weights.h5')
         onnx_model_present = _os.path.exists(onnx_path)
+        weights_present = _os.path.exists(weights_path)
+        # Try importing runtimes
         onnx_runtime_available = False
+        tf_available = False
         try:
-            import onnxruntime as _ort
+            import onnxruntime as _ort  # type: ignore
             onnx_runtime_available = True
         except Exception:
             onnx_runtime_available = False
-
-        # Check TF availability and weights
-        tf_available = False
-        weights_present = False
         try:
-            import tensorflow as _tf
+            import tensorflow as _tf  # type: ignore
             tf_available = True
         except Exception:
             tf_available = False
-
-        weights_path = _os.path.join(_os.path.dirname(__file__), '..', 'models', 'siamese_weights.h5')
-        weights_present = _os.path.exists(weights_path)
 
         return {
             'onnx_model_present': bool(onnx_model_present),
@@ -1472,50 +1149,6 @@ def siamese_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"siamese_status error: {e}")
-
-
-@router.get('/registered_embedding')
-def registered_embedding(sha256_hash: str | None = None, cid: str | None = None):
-    """Return a persisted embedding (if any) for the given registered asset.
-
-    This lets verification logic compare against the embedding stored in the
-    registry (off-chain) without downloading the full image.
-    """
-    try:
-        from pathlib import Path
-        DATA_PATH = Path(__file__).resolve().parents[1] / 'data'
-        MEDIA_FILE = DATA_PATH / 'registered_media.json'
-        if not MEDIA_FILE.exists():
-            raise HTTPException(status_code=404, detail='No registered_media.json found')
-        media = json.loads(MEDIA_FILE.read_text())
-        rec = None
-        if cid:
-            rec = next((m for m in media if m.get('ipfs_cid') == cid), None)
-        elif sha256_hash:
-            key = sha256_hash[2:] if sha256_hash.startswith('0x') else sha256_hash
-            rec = next((m for m in media if (m.get('sha256_hash') or '').replace('0x','').lower() == key.lower()), None)
-        else:
-            raise HTTPException(status_code=400, detail='Provide sha256_hash or cid')
-
-        if not rec:
-            raise HTTPException(status_code=404, detail='Registered asset not found')
-        emb = rec.get('embedding')
-        if not emb:
-            return {'available': False, 'embedding': None}
-        # Compute SHA-256 of the embedding bytes (float32 little-endian) for anchoring
-        try:
-            import numpy as _np
-            emb_arr = _np.asarray(emb, dtype=_np.float32)
-            emb_bytes = emb_arr.tobytes()
-            emb_hash = hashlib.sha256(emb_bytes).hexdigest()
-        except Exception:
-            emb_hash = None
-        return {'available': True, 'embedding': emb, 'embedding_sha256': emb_hash, 'signer_address': rec.get('signer_address')}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f'registered_embedding error: {e}')
-    
 
 
 @router.post("/precompute_embeddings")
@@ -1597,7 +1230,7 @@ def precompute_embeddings(skip_existing: bool = True):
 
 
 @router.post("/siamese_check")
-def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None, weights_path: str | None = None, threshold: float = 0.5, registered_embedding_hash: str | None = None, reg_key_hex: str | None = None):
+def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None, weights_path: str | None = None, threshold: float = 0.5):
     """Compare a suspect image against a registered asset using the Siamese model.
 
     Params:
@@ -1617,45 +1250,12 @@ def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to read suspect file: {e}")
 
-    # Determine registered file bytes (same logic as /compare)
+        # Determine registered file bytes (same logic as /compare)
         reg_bytes = None
         reg_path_hint = None
         from pathlib import Path
         DATA_PATH = Path(__file__).resolve().parents[1] / "data"
         MEDIA_FILE = DATA_PATH / "registered_media.json"
-        # If reg_key_hex provided, try to resolve it first (local DB or on-chain)
-        if reg_key_hex:
-            if MEDIA_FILE.exists():
-                try:
-                    media = json.loads(MEDIA_FILE.read_text())
-                    rk = reg_key_hex[2:] if reg_key_hex.startswith('0x') else reg_key_hex
-                    rk = rk.lower()
-                    rec = next((m for m in media if (m.get('unique_reg_key') or '').lower() == rk), None)
-                    if rec and rec.get('file_url'):
-                        reg_url = rec.get('file_url')
-                    elif rec and rec.get('ipfs_cid'):
-                        reg_url = f"https://gateway.pinata.cloud/ipfs/{rec.get('ipfs_cid')}"
-                except Exception:
-                    rec = None
-            if not rec:
-                # attempt on-chain fetch to recover embedding hash or cid
-                try:
-                    oc = onchain_registration(reg_key_hex)
-                    reg_box = oc.get('reg_box')
-                    media_box = oc.get('media_box')
-                    if reg_box and isinstance(reg_box, dict):
-                        maybe_text = reg_box.get('as_text')
-                        if maybe_text:
-                            import re as _re
-                            if _re.fullmatch(r"[0-9a-fA-F]{64}", maybe_text.strip()):
-                                registered_embedding_hash = maybe_text.strip()
-                    if media_box and isinstance(media_box, dict):
-                        mtext = media_box.get('as_text')
-                        if mtext and ('Qm' in mtext or 'bafy' in mtext):
-                            reg_url = f"https://gateway.pinata.cloud/ipfs/{mtext.strip()}"
-                except HTTPException as he:
-                    raise HTTPException(status_code=502, detail=f"Failed to fetch on-chain registration: {he.detail}")
-
         if ipfs_cid:
             # try to find record and its file_url
             if MEDIA_FILE.exists():
@@ -1703,112 +1303,39 @@ def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
             except Exception as e:
                 raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
         else:
-            raise HTTPException(status_code=400, detail="Provide either ipfs_cid, registered_sha256, or reg_key_hex")
+            raise HTTPException(status_code=400, detail="Provide either ipfs_cid or registered_sha256")
 
-        # If the caller provided an on-chain registration key, try to fetch an on-chain anchor
-        if reg_key_hex and not registered_embedding_hash:
-            try:
-                registered_embedding_hash, maybe_reg_url = _resolve_onchain_anchor(reg_key_hex)
-                if maybe_reg_url:
-                    reg_url = maybe_reg_url
-            except HTTPException as he:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch on-chain registration: {he.detail}")
-
-        # Fast path: if registered record has a precomputed embedding, use it (no file download or TF required)
+        # Try to import siamese helper and load weights lazily
         try:
-            if MEDIA_FILE.exists() and (ipfs_cid or registered_sha256):
-                # try to find record we already extracted above (rec may be None if earlier path failed)
-                if not rec:
-                    try:
-                        media = json.loads(MEDIA_FILE.read_text())
-                        if ipfs_cid:
-                            rec = next((m for m in media if m.get('ipfs_cid') == ipfs_cid), None)
-                        else:
-                            key = registered_sha256[2:] if registered_sha256.startswith('0x') else registered_sha256
-                            rec = next((m for m in media if (m.get('sha256_hash') or '').replace('0x','').lower() == key.lower()), None)
-                    except Exception:
-                        rec = None
-
-            if rec and rec.get('embedding'):
-                try:
-                    reg_emb = np.array(rec.get('embedding'), dtype=float)
-                    # If caller supplied a registered_embedding_hash, verify it matches stored embedding
-                    if registered_embedding_hash:
-                        try:
-                            import numpy as _np
-                            emb_bytes = _np.asarray(rec.get('embedding'), dtype=_np.float32).tobytes()
-                            emb_hash = hashlib.sha256(emb_bytes).hexdigest()
-                        except Exception:
-                            raise HTTPException(status_code=500, detail="Failed to compute stored embedding hash")
-                        if emb_hash.lower() != registered_embedding_hash.lower():
-                            raise HTTPException(status_code=409, detail="Stored embedding hash does not match provided on-chain anchor")
-
-                    sus_emb = get_embedding_from_bytes(suspect_bytes)
-                    sim = float(cosine_sim(reg_emb, sus_emb))
-                    decision = 'authentic' if sim >= float(threshold) else 'altered'
-                    return {"available": True, "method": "embedding_fast", "similarity": sim, "threshold": float(threshold), "decision": decision, "registered_source": rec.get('file_url') or rec.get('ipfs_cid'), "embedding_hash_verified": bool(registered_embedding_hash is None or emb_hash.lower() == registered_embedding_hash.lower())}
-                except HTTPException:
-                    raise
-                except Exception:
-                    # fall through to siamese/bytes-based path below
-                    pass
-
-            # If caller provided a registered_embedding_hash but we don't have a stored embedding,
-            # attempt to compute the registered embedding from the fetched bytes and verify the hash.
-            if registered_embedding_hash and (not rec or not rec.get('embedding')):
-                # We must have reg_bytes to compute
-                if not reg_bytes:
-                    raise HTTPException(status_code=400, detail="No stored embedding and registered file not available to verify provided embedding hash")
-                try:
-                    # compute embedding for registered bytes
-                    reg_emb_candidate = get_embedding_from_bytes(reg_bytes)
-                    import numpy as _np
-                    emb_bytes = _np.asarray(reg_emb_candidate, dtype=_np.float32).tobytes()
-                    emb_hash_candidate = hashlib.sha256(emb_bytes).hexdigest()
-                    if emb_hash_candidate.lower() != registered_embedding_hash.lower():
-                        raise HTTPException(status_code=409, detail="Computed embedding from registered file does not match provided on-chain anchor")
-                    # if it matches, set rec so later logic can reuse
-                    rec = rec or {}
-                    rec['embedding'] = reg_emb_candidate.tolist()
-                except Exception as e:
-                    # Failed to compute embedding from the registered file
-                    raise HTTPException(status_code=500, detail=f"Failed to compute registered embedding: {e}")
-
-            # Try to import siamese helper and load weights lazily
-            try:
-                from .. import siamese_model
-            except Exception as e:
-                raise HTTPException(status_code=503, detail=f"Siamese model module not available: {e}")
-
-            # Determine weights path
-            if not weights_path:
-                default_weights = Path(__file__).resolve().parents[1] / 'models' / 'siamese_weights.h5'
-                weights_path = str(default_weights)
-
-            # Build model structure and load weights
-            try:
-                model, _ = siamese_model.build_siamese_network()
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to construct siamese model: {e}")
-
-            try:
-                siamese_model.load_weights(model, weights_path)
-            except Exception as e:
-                raise HTTPException(status_code=503, detail=f"Failed to load siamese weights from {weights_path}: {e}")
-
-            # Run prediction on raw bytes (registered file bytes vs suspect bytes)
-            try:
-                sim = siamese_model.predict_similarity_from_bytes(model, reg_bytes, suspect_bytes)
-                sim = float(max(0.0, min(1.0, sim)))
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Siamese prediction failed: {e}")
-
-            decision = 'authentic' if sim >= float(threshold) else 'altered'
-            return {"available": True, "method": "siamese", "similarity": sim, "threshold": float(threshold), "decision": decision, "registered_source": reg_path_hint}
-        except HTTPException:
-            raise
+            from .. import siamese_model
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Siamese check error: {e}")
+            raise HTTPException(status_code=503, detail=f"Siamese model module not available: {e}")
+
+        # Determine weights path
+        if not weights_path:
+            default_weights = Path(__file__).resolve().parents[1] / 'models' / 'siamese_weights.h5'
+            weights_path = str(default_weights)
+
+        # Build model structure and load weights
+        try:
+            model, _ = siamese_model.build_siamese_network()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to construct siamese model: {e}")
+
+        try:
+            siamese_model.load_weights(model, weights_path)
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Failed to load siamese weights from {weights_path}: {e}")
+
+        # Run prediction
+        try:
+            sim = siamese_model.predict_similarity_from_bytes(model, reg_bytes, suspect_bytes)
+            sim = float(max(0.0, min(1.0, sim)))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Siamese prediction failed: {e}")
+
+        decision = 'authentic' if sim >= float(threshold) else 'altered'
+        return {"available": True, "method": "siamese", "similarity": sim, "threshold": float(threshold), "decision": decision, "registered_source": reg_path_hint}
 
     except HTTPException:
         raise

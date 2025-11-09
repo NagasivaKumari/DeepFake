@@ -67,7 +67,6 @@ def build_register_app_call(
     sha256_hex: str,
     cid: str,
     nonce_str: Optional[str] = None,
-    embedding_sha256_hex: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], str, bytes, bytes]:
     """
     Build an unsigned ApplicationNoOpTxn for the ProofChain register flow.
@@ -88,18 +87,12 @@ def build_register_app_call(
     H = hex_to_bytes(sha256_hex)
     media_key = compute_media_key(H)
     if nonce_str is None:
-        # Fallback to sender(raw 32 bytes) + big-endian round to match on-chain Concat(Txn.sender(), Itob(Global.round()))
+        # Fallback to sender+round by querying the current round; caller may override.
         status = client.status()
         current_round = status.get("last-round") or status.get("lastRound")
         if current_round is None:
             current_round = 0
-        try:
-            # decode the Algorand address to raw 32-byte public key
-            sender_raw = encoding.decode_address(sender)
-        except Exception:
-            # fallback to utf-8 bytes if decode fails (shouldn't on valid addresses)
-            sender_raw = sender.encode("utf-8")
-        nonce_bytes = sender_raw + int(current_round).to_bytes(8, "big")
+        nonce_bytes = (sender.encode("utf-8") + int(current_round).to_bytes(8, "big"))
     else:
         nonce_bytes = nonce_str.encode("utf-8")
     reg_key = compute_reg_key(media_key, nonce_bytes)
@@ -111,126 +104,18 @@ def build_register_app_call(
         nonce_bytes,
     ]
 
-    # Optionally include the 32-byte embedding SHA-256 anchor so clients can
-    # persist a compact embedding digest on-chain as part of the app call.
-    if embedding_sha256_hex:
-        try:
-            emb_hex = embedding_sha256_hex[2:] if embedding_sha256_hex.startswith("0x") else embedding_sha256_hex
-            emb_bytes = bytes.fromhex(emb_hex)
-            if len(emb_bytes) == 32:
-                app_args.append(emb_bytes)
-        except Exception:
-            # Ignore malformed embedding arg; caller may still sign without it
-            pass
-
-    # Boxes must be declared to access/create them in the app call. Some
-    # versions of the Python SDK don't accept the `boxes=` kwarg when
-    # constructing ApplicationNoOpTxn. Try to include boxes, but fall back
-    # to constructing the txn without boxes for older SDKs.
+    # Boxes must be declared to access/create them in the app call
     boxes = [(app_id, media_key), (app_id, reg_key)]
-    try:
-        txn = future_txn.ApplicationNoOpTxn(
-            sender=sender,
-            sp=params,
-            index=app_id,
-            app_args=app_args,
-            boxes=boxes,
-        )
-    except TypeError as e:
-        # Older SDK doesn't support boxes kwarg; fall back and warn.
-        import logging
-        logging.getLogger("algorand_app_utils").warning(
-            "ApplicationNoOpTxn does not accept 'boxes' in this SDK version; "
-            "constructing txn without boxes (app may require boxes at call time). %s",
-            e,
-        )
-        txn = future_txn.ApplicationNoOpTxn(
-            sender=sender,
-            sp=params,
-            index=app_id,
-            app_args=app_args,
-        )
+
+    txn = future_txn.ApplicationNoOpTxn(
+        sender=sender,
+        sp=params,
+        index=app_id,
+        app_args=app_args,
+        boxes=boxes,
+    )
 
     # Return dict and base64 msgpack for client-side signing
     txn_dict = txn.dictify()
     txn_b64 = base64.b64encode(encoding.msgpack_encode(txn).encode("utf-8")).decode("utf-8")
     return txn_dict, txn_b64, media_key, reg_key
-
-
-def build_register_atomic_group(
-    sender: str,
-    app_id: int,
-    sha256_hex: str,
-    cid: str,
-    payment_receiver: str,
-    payment_amount: int,
-    embedding_sha256_hex: Optional[str] = None,
-) -> Tuple[Dict[str, Any], str, Dict[str, Any], str, bytes, bytes]:
-    """
-    Build an unsigned atomic group composed of a PaymentTxn (sender -> payment_receiver)
-    and an ApplicationNoOpTxn register call. The payment transaction's txid is used as
-    the nonce bytes included in the app call so the client can sign both txns and submit
-    them atomically. Returns (payment_txn_dict, payment_b64, app_txn_dict, app_b64, media_key, reg_key).
-    """
-    client = get_algod_client()
-    params = client.suggested_params()
-
-    H = hex_to_bytes(sha256_hex)
-    media_key = compute_media_key(H)
-
-    # Build unsigned payment txn (sender -> payment_receiver)
-    payment_txn = future_txn.PaymentTxn(
-        sender,
-        params,
-        payment_receiver,
-        payment_amount,
-        None,
-        "Registration nonce payment",
-    )
-
-    # Compute the payment txn id deterministically (available before signing)
-    try:
-        payment_txid = payment_txn.get_txid()
-    except Exception:
-        # fallback: compute from msgpack encode
-        import base64 as _b64
-        payment_txid = future_txn.calculate_txid(payment_txn.dictify())
-
-    # Use payment_txid as nonce bytes
-    nonce_bytes = str(payment_txid).encode("utf-8")
-    reg_key = compute_reg_key(media_key, nonce_bytes)
-
-    app_args = [b"register", H, cid.encode("utf-8"), nonce_bytes]
-    if embedding_sha256_hex:
-        try:
-            emb_hex = embedding_sha256_hex[2:] if embedding_sha256_hex.startswith("0x") else embedding_sha256_hex
-            emb_bytes = bytes.fromhex(emb_hex)
-            if len(emb_bytes) == 32:
-                app_args.append(emb_bytes)
-        except Exception:
-            pass
-
-    app_txn = future_txn.ApplicationNoOpTxn(
-        sender=sender,
-        sp=params,
-        index=app_id,
-        app_args=app_args,
-    )
-
-    # Assign group id to both txns
-    try:
-        gid = future_txn.calculate_group_id([payment_txn, app_txn])
-        payment_txn.group = gid
-        app_txn.group = gid
-    except Exception:
-        # If grouping fails, continue without group (client can still sign and submit)
-        pass
-
-    # Serialize both transactions to dict + base64 msgpack for client signing
-    from algosdk import encoding as _encoding
-    import base64 as _base64
-
-    payment_b64 = _base64.b64encode(encoding.msgpack_encode(payment_txn).encode("utf-8")).decode("utf-8")
-    app_b64 = _base64.b64encode(encoding.msgpack_encode(app_txn).encode("utf-8")).decode("utf-8")
-
-    return payment_txn.dictify(), payment_b64, app_txn.dictify(), app_b64, media_key, reg_key
