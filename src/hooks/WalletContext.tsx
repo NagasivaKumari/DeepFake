@@ -8,7 +8,8 @@ interface WalletContextType {
   address: string | null;
   isConnected: boolean;
   error: string;
-  connect: () => Promise<void>;
+  // Returns connected address or null on failure
+  connect: () => Promise<string | null>;
   disconnect: () => void;
 }
 
@@ -43,17 +44,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setAddress(addr);
         setIsConnected(true);
         console.log("[LuteConnect] Connected Algorand address:", addr);
+        return addr;
       } else {
         setError("No valid address returned from wallet.");
         setAddress(null);
         setIsConnected(false);
         console.error("[LuteConnect] No valid Algorand address returned.", res);
+        return null;
       }
     } catch (e: any) {
       setError(e.message || "Wallet connection failed.");
       setAddress(null);
       setIsConnected(false);
       console.error("[LuteConnect] Wallet connection error:", e);
+      return null;
     }
   }, []);
 

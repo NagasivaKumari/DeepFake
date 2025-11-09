@@ -1,4 +1,3 @@
-
 // import Header from "@/components/Header";
 
 
@@ -33,21 +32,15 @@ const Index = () => {
     fetch(`/api/kyc/status?address=${address}`)
       .then(resp => resp.ok ? resp.json() : Promise.reject("Failed to fetch KYC status"))
       .then(data => {
-        setKycStatus(data.status || "not_started");
-        if (data.status === "approved") {
+        const status = data.status || "not_started";
+        setKycStatus(status);
+        if (status === "approved") {
           navigate("/dashboard", { replace: true });
         }
       })
       .catch(() => setKycStatus(null))
       .finally(() => setKycLoading(false));
   }, [isConnected, address, navigate]);
-
-  // After wallet connect, always show KYC form or status on landing page
-  if (isConnected && !kycLoading && kycStatus === "approved") {
-    // If KYC is approved, redirect to dashboard
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-background">

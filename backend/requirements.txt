@@ -1,26 +1,21 @@
-# FastAPI server
 fastapi==0.95.2
 uvicorn[standard]==0.22.0
 python-dotenv==1.0.0
 requests==2.31.0
-# Pin to pydantic v1 for compatibility with the current codebase
-pydantic==1.10.12
+pydantic==1.10.11
 py-algorand-sdk==2.1.0
 python-multipart==0.0.6
 # Lute wallet SDK (placeholder) - replace with the real package name when known
 # Example: lute-sdk==0.1.0
 
 # Optional image analysis dependencies (lightweight CPU usage recommended)
-# Image analysis (CPU-friendly defaults)
 Pillow==10.0.0
 imagehash==4.3.1
-# Use opencv-python on Windows so `import cv2` works reliably
-opencv-python==4.8.1.78
-numpy==1.26.4
-scipy==1.11.3
+# Optional heavy dependencies removed for local dev to avoid install issues:
+# opencv-python-headless==4.8.1.78
+# numpy==1.26.4
+# scipy==1.11.3
 # CPU-only PyTorch and torchvision - install via the instructions in the README for platform specific wheels
-## The following ML packages are large and platform-specific. Commented out by default.
-## Install them separately following the project's README when you need GPU/CPU-specific wheels.
 # torch==2.2.2
 # torchvision==0.16.2
-onnxruntime==1.15.1
+# onnxruntime==1.15.1
