@@ -285,8 +285,8 @@ python scripts\compile_deploy_pyteal.py
 The script compiles the PyTeal into TEAL, deploys the application, and writes the deployed app id to deployed_app.txt.
 
 Smart contracts deployed Link: https://lora.algokit.io/testnet/application/749309990
-Backend app-call helper
 
+Backend app-call helper
 Use backend/algorand_app_utils.py to prepare unsigned application-call transactions (client signs) and submit signed app-call txns. The backend endpoint will return the unsigned app-call JSON for client-side signing.
 
 PPT : https://docs.google.com/presentation/d/1GezNeJRjyPQkZp4Oi4cJe4HUCXP1umcn/edit?usp=drive_link&ouid=116725791494411323852&rtpof=true&sd=true
