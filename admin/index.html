@@ -7,6 +7,10 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Use a relative module path so the browser requests the script from the same origin
+         that served this HTML. This avoids hitting the backend root (which may serve
+         files with application/octet-stream) when you open the admin page via the API
+         server. Vite's dev server will still correctly resolve this path. -->
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

@@ -76,11 +76,18 @@ export const storage: any = {
       },
       async create(data: any) {
         try {
-          const resp = await fetch('/media/register', {
+          // If caller passed a FormData (multipart upload), let the browser set
+          // the Content-Type (including the boundary). For plain objects, send JSON.
+          const isForm = typeof FormData !== 'undefined' && data instanceof FormData;
+          const options: any = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
+            body: isForm ? data : JSON.stringify(data),
+          };
+          if (!isForm) {
+            options.headers = { 'Content-Type': 'application/json' };
+          }
+
+          const resp = await fetch('/media/register', options);
           if (!resp.ok) {
             const errorText = await resp.text();
             console.error("Register API error:", errorText);

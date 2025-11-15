@@ -2,7 +2,7 @@ function isNonNullObjectWithAddress(val: unknown): val is { address: string } {
   return typeof val === "object" && val !== null && "address" in val;
 }
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import LuteConnect from "lute-connect";
+import { getLute } from "@/utils/luteClient";
 
 interface WalletContextType {
   address: string | null;
@@ -23,10 +23,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const connect = useCallback(async () => {
     setError("");
     try {
-      const client = new LuteConnect(document.title || "YourAppName");
-  console.log("[LuteConnect] Attempting to connect with network: testnet-v1.0");
-  const res = await client.connect("testnet-v1.0");
-      console.log("[LuteConnect] Connection result:", res);
+    const client = getLute();
+    console.log("[LuteConnect] Attempting to connect with network: testnet-v1.0");
+    const res = await client.connect("testnet-v1.0");
+    console.log("[LuteConnect] Connection result:", res);
       let addr: string | null = null;
       if (Array.isArray(res)) {
         const first = res[0];

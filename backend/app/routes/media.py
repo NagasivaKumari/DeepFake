@@ -6,7 +6,10 @@ print("[STARTUP] settings.PINATA_API_SECRET:", getattr(settings, 'PINATA_API_SEC
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi import Depends
 import requests
-from ..schemas import GenerateRequest, UploadResponse, RegisterRequest, VerifySignatureRequest, DeriveKeysRequest
+from ..schemas import (
+    GenerateRequest, UploadResponse, RegisterRequest, VerifySignatureRequest, DeriveKeysRequest,
+    BroadcastRequest, BroadcastAppRequest
+)
 from typing import Dict
 import hashlib
 import time
@@ -105,20 +108,22 @@ def generate_media(payload: GenerateRequest):
     try:
         from algosdk import account, mnemonic, transaction
         from algosdk.v2client import algod
-        # Load server mnemonic and user wallet address
-        server_mnemonic = settings.LUTE_MNEMONIC.replace('"', '').strip()
+        # Load server mnemonic (prefer DEPLOYER_MNEMONIC) and user wallet address
+        server_mnemonic = getattr(settings, 'DEPLOYER_MNEMONIC', None)
+        if server_mnemonic:
+            server_mnemonic = server_mnemonic.replace('"', '').strip()
         user_address = getattr(payload, 'wallet_address', None)
         if not server_mnemonic or not user_address:
-            raise Exception("Missing server mnemonic or user wallet address")
+            raise Exception("Missing server DEPLOYER_MNEMONIC or user wallet address")
 
         # Setup Algod client
         algod_address = settings.ALGOD_ADDRESS
         algod_token = settings.ALGOD_TOKEN
         algod_client = algod.AlgodClient(algod_token, algod_address)
 
-        # Get server account
+        # Get server account (compatible with newer SDKs without to_public_key)
         sender_private_key = mnemonic.to_private_key(server_mnemonic)
-        sender_address = mnemonic.to_public_key(server_mnemonic)
+        sender_address = account.address_from_private_key(sender_private_key)
 
         # Get suggested params
         params = algod_client.suggested_params()
@@ -407,7 +412,12 @@ def register_media(payload: RegisterRequest):
         pass
 
     media.append(reg_data)
-    MEDIA_FILE.write_text(json.dumps(media, indent=2))
+    try:
+        MEDIA_FILE.write_text(json.dumps(media, indent=2))
+    except Exception as e:
+        import traceback as _tb, sys as _sys
+        _tb.print_exc(file=_sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Failed to persist registration: {e}")
     # --- Prepare unsigned application call for on-chain registration ---
     unsigned_app_txn = None
     unsigned_app_txn_b64 = None
@@ -448,6 +458,19 @@ def register_media(payload: RegisterRequest):
             "reg_key": reg_key_hex,
         }
     return response
+
+
+@router.post("/register_debug")
+def register_media_debug(payload: RegisterRequest):
+    """Debug wrapper that calls register_media and returns full traceback on error (local dev only)."""
+    try:
+        return register_media(payload)
+    except Exception as e:
+        import traceback, sys as _sys
+        tb = traceback.format_exc()
+        print(f"[REGISTER DEBUG EXC] {tb}", file=_sys.stderr)
+        # Return the traceback to the client for local debugging
+        raise HTTPException(status_code=500, detail=tb)
 
 
 @router.get("/registrants")
@@ -609,26 +632,55 @@ def algod_params():
 
 
 @router.post("/broadcast_signed_tx")
-def broadcast_signed_tx(body: Dict[str, str]):
+def broadcast_signed_tx(body: BroadcastRequest):
     """Broadcast a signed Algorand transaction to the configured algod node.
 
     Expect body: { "signed_tx_b64": "..." }
     Returns: { "txid": "...", "explorer_url": "..." }
     """
     try:
-        signed_b64 = body.get("signed_tx_b64")
+        signed_b64 = body.signed_tx_b64
         if not signed_b64:
             raise HTTPException(status_code=400, detail="signed_tx_b64 is required")
-        import base64
-        try:
-            signed_bytes = base64.b64decode(signed_b64)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid base64 signed txn: {e}")
+        import base64, re
+        def _decode_b64(s: str) -> bytes:
+            sb = (s or "").strip()
+            sb = re.sub(r"\s+", "", sb)
+            # handle possible data URLs (e.g., "data:...;base64,AAAA...")
+            if "," in sb and ";base64" in sb[:64]:
+                sb = sb.split(",", 1)[1]
+            # try standard alphabet first with padding attempts
+            core = sb.replace("-", "+").replace("_", "/")
+            for pad in range(0, 4):
+                try:
+                    return base64.b64decode(core + ("=" * pad), validate=False)
+                except Exception:
+                    continue
+            # then try urlsafe decoder with padding attempts
+            for pad in range(0, 4):
+                try:
+                    return base64.urlsafe_b64decode(sb + ("=" * pad))
+                except Exception:
+                    continue
+            raise HTTPException(status_code=400, detail="Invalid base64 for signed txn: could not decode after normalization")
+
+        signed_bytes = _decode_b64(signed_b64)
 
         from ..algorand_app_utils import get_algod_client
         algod_client = get_algod_client()
-        # Use send_transaction (python algosdk) to submit signed bytes
-        txid = algod_client.send_transaction(signed_bytes)
+        # Submit raw signed transaction bytes directly; compatible with older SDKs
+        try:
+            txid = algod_client.send_raw_transaction(signed_bytes)
+        except Exception as e:
+            # Surface detailed algod errors
+            try:
+                from algosdk.error import AlgodHTTPError  # type: ignore
+            except Exception:
+                AlgodHTTPError = Exception  # type: ignore
+            if isinstance(e, AlgodHTTPError):
+                err_text = str(e)
+                raise HTTPException(status_code=502, detail=f"Algod error: {err_text}")
+            raise HTTPException(status_code=500, detail=f"Broadcast failed (send_raw_transaction): {e}")
         explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
         return {"txid": txid, "explorer_url": explorer_url}
     except HTTPException:
@@ -638,7 +690,7 @@ def broadcast_signed_tx(body: Dict[str, str]):
 
 
 @router.post("/broadcast_signed_app_tx")
-def broadcast_signed_app_tx(body: Dict[str, str]):
+def broadcast_signed_app_tx(body: BroadcastAppRequest):
     """Broadcast a signed Algorand application transaction (single txn, non-atomic) and
     optionally attach the resulting txid to an existing registration record.
 
@@ -650,24 +702,55 @@ def broadcast_signed_app_tx(body: Dict[str, str]):
     Returns: { txid, explorer_url, updated_record?: {...} }
     """
     try:
-        signed_b64 = body.get("signed_tx_b64")
+        signed_b64 = body.signed_tx_b64
         if not signed_b64:
             raise HTTPException(status_code=400, detail="signed_tx_b64 is required")
-        import base64
+        import base64, re
         try:
-            signed_bytes = base64.b64decode(signed_b64)
+            sb = (signed_b64 or "").strip()
+            sb = re.sub(r"\s+", "", sb)
+            if "," in sb and ";base64" in sb[:64]:
+                sb = sb.split(",", 1)[1]
+            core = sb.replace("-", "+").replace("_", "/")
+            decoded = None
+            for pad in range(0,4):
+                try:
+                    decoded = base64.b64decode(core + ("="*pad), validate=False)
+                    break
+                except Exception:
+                    continue
+            if decoded is None:
+                for pad in range(0,4):
+                    try:
+                        decoded = base64.urlsafe_b64decode(sb + ("="*pad))
+                        break
+                    except Exception:
+                        continue
+            if decoded is None:
+                raise Exception("could not decode after normalization")
+            signed_bytes = decoded
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid base64 signed txn: {e}")
 
         from ..algorand_app_utils import get_algod_client
         algod_client = get_algod_client()
-        # Use send_transaction (python algosdk) to submit signed bytes
-        txid = algod_client.send_transaction(signed_bytes)
+        # Use send_raw_transaction for raw signed bytes for compatibility
+        try:
+            txid = algod_client.send_raw_transaction(signed_bytes)
+        except Exception as e:
+            try:
+                from algosdk.error import AlgodHTTPError  # type: ignore
+            except Exception:
+                AlgodHTTPError = Exception  # type: ignore
+            if isinstance(e, AlgodHTTPError):
+                err_text = str(e)
+                raise HTTPException(status_code=502, detail=f"Algod error: {err_text}")
+            raise HTTPException(status_code=500, detail=f"Broadcast app-tx failed (send_raw_transaction): {e}")
         explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
 
         # Optionally attach txid to stored registration by unique_reg_key or content_key
-        unique_reg_key = body.get("unique_reg_key")
-        content_key = body.get("content_key")
+        unique_reg_key = body.unique_reg_key
+        content_key = body.content_key
         updated = None
         try:
             from pathlib import Path
@@ -704,6 +787,74 @@ def broadcast_signed_app_tx(body: Dict[str, str]):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Broadcast app-tx failed: {e}")
+
+
+@router.post("/server_pay")
+def server_pay():
+    """Send a 1 ALGO payment from the server's deployer account to the deployer address.
+
+    This provides a txid nonce without requiring the client to sign. Requires
+    DEPLOYER_MNEMONIC to be set on the server. Returns { txid, explorer_url }.
+    """
+    try:
+        # Ensure mnemonic is available
+        mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
+        if not mn:
+            raise HTTPException(status_code=500, detail="DEPLOYER_MNEMONIC not configured on server")
+        try:
+            from algosdk import mnemonic as _mn, account as _acct
+            from algosdk.v2client import algod
+            # Prefer building txn with whichever transaction module is available
+            try:
+                from algosdk.future import transaction as _txn  # type: ignore
+            except Exception:
+                from algosdk import transaction as _txn  # type: ignore
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Algorand SDK import failed: {e}")
+
+        # Build algod client
+        from ..algorand_app_utils import get_algod_client
+        algod_client = get_algod_client()
+
+        # Derive deployer keypair (compatible with newer SDKs without to_public_key)
+        clean_mn = mn.replace('"', '').strip()
+        priv = _mn.to_private_key(clean_mn)
+        sender_addr = _acct.address_from_private_key(priv)
+
+        # Receiver is the configured deployer address (self-transfer)
+        recv_resp = get_deployer_address()
+        recv_addr = recv_resp.get('deployer_address')
+        if not recv_addr:
+            raise HTTPException(status_code=500, detail="DEPLOYER_ADDRESS not available from server")
+
+        # Build and sign txn
+        try:
+            params = algod_client.suggested_params()
+            amount = 1_000_000  # 1 ALGO in microAlgos
+            note = b"ProofChain registration (server-pays)"
+            unsigned_txn = _txn.PaymentTxn(sender_addr, params, recv_addr, amount, None, note)
+            signed_txn = unsigned_txn.sign(priv)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to build/sign server payment: {e}")
+
+        # Send via send_transaction (SignedTransaction object)
+        try:
+            txid = algod_client.send_transaction(signed_txn)
+        except Exception as e:
+            try:
+                from algosdk.error import AlgodHTTPError  # type: ignore
+            except Exception:
+                AlgodHTTPError = Exception  # type: ignore
+            if isinstance(e, AlgodHTTPError):
+                raise HTTPException(status_code=502, detail=f"Algod error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Server payment failed: {e}")
+
+        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
+        return {"txid": txid, "explorer_url": explorer_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"server_pay error: {e}")
 
 
 @router.get("/cid_status/{cid}")
@@ -750,17 +901,20 @@ def get_deployer_address():
     send the client-side payment to when using a client-pays flow.
     """
     try:
-        addr = getattr(settings, 'DEPLOYER_ADDRESS', None)
+        # Prefer deriving the deployer address from DEPLOYER_MNEMONIC when available
+        # This ensures the backend uses the mnemonic in the .env as the canonical receiver.
+        addr = None
+        mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
+        if mn:
+            try:
+                from algosdk import mnemonic as _mnemonic, account as _account
+                priv = _mnemonic.to_private_key(mn.replace('"', '').strip())
+                addr = _account.address_from_private_key(priv)
+            except Exception:
+                addr = None
+        # Fallback to an explicit DEPLOYER_ADDRESS if mnemonic not present or derivation failed
         if not addr:
-            # If DEPLOYER_ADDRESS not set, but DEPLOYER_MNEMONIC is set, derive address
-            mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
-            if mn:
-                try:
-                    from algosdk import mnemonic as _mnemonic, account as _account
-                    priv = _mnemonic.to_private_key(mn.replace('"', '').strip())
-                    addr = _account.address_from_private_key(priv)
-                except Exception:
-                    addr = None
+            addr = getattr(settings, 'DEPLOYER_ADDRESS', None)
         return {"deployer_address": addr}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get deployer address: {e}")

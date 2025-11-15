@@ -10,7 +10,14 @@ app = FastAPI(title="ProofChain Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
+    # Allow common local dev origins. Add any additional dev origins (e.g. Vite at :5175) as needed.
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://localhost:5173",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

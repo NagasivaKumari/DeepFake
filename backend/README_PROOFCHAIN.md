@@ -8,11 +8,6 @@ Short summary
 - Backend: FastAPI (Python) with endpoints to register and verify media
 - Smart contracts: PyTeal examples are in `../contracts`
 
-Design goals
-- Keep private keys off the server when possible. Recommended flow: Backend pins media and returns an unsigned Algorand app-call or payment txn; the client (Lute wallet) signs it and submits.
-- Store signed metadata JSON on IPFS and reference the CID in on-chain proofs.
-- Use Algorand boxes (stateful PyTeal contract) to map SHA-256 hashes to metadata CIDs and creator addresses.
-
 Quick start (dev)
 
 1. Create a Python virtual environment and install dependencies
@@ -49,14 +44,7 @@ Contracts & deployment
 - The `contracts/` folder contains PyTeal source for the ProofChain app which uses boxes keyed by SHA-256.
 - Use `deploy.py` to compile and deploy the contract to TestNet. Provide `ALGOD_ADDRESS`, `ALGOD_TOKEN`, and `DEPLOYER_MNEMONIC` in your environment before running.
 
-Security & production notes
-- Store secrets in a secret manager (Vault, Azure Key Vault, etc.) in production. Avoid committing mnemonics or API keys to source control.
-- Validate inputs and enforce allowlists for content registration.
-- Add authentication, logging, monitoring, and rate-limiting for public endpoints.
-
 Next steps and TODO
 - Add a lightweight indexer to speed up lookups / UI queries (optional).
 - Integrate Lute SDK when a Python package is available; for now signature verification uses raw Ed25519 checks on canonical metadata JSON.
 - Add end-to-end smoke tests (Pinata pinning + unsigned txn flow + client signing).
-
-If you want me to rework any endpoints, wire the frontend to these new endpoints, or run a smoke test with your Pinata / Algod tokens, tell me and I'll proceed.

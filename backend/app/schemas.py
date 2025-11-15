@@ -82,3 +82,13 @@ class OtpVerifyRequest(BaseModel):
     kyc_id: str
     otp: str
 
+
+class BroadcastRequest(BaseModel):
+    signed_tx_b64: str
+
+
+class BroadcastAppRequest(BaseModel):
+    signed_tx_b64: str
+    unique_reg_key: Optional[str] = None
+    content_key: Optional[str] = None
+

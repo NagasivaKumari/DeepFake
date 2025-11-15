@@ -4,7 +4,16 @@ from typing import Optional, Tuple, Dict, Any
 
 from algosdk.v2client import algod
 from algosdk import encoding
-from algosdk.future import transaction as future_txn
+# algosdk versions expose transaction in different places. Try the future module first,
+# then fall back to the top-level transaction module. If neither is available, leave
+# future_txn as None and raise a clear error at use-time.
+try:
+    from algosdk.future import transaction as future_txn
+except Exception:
+    try:
+        from algosdk import transaction as future_txn
+    except Exception:
+        future_txn = None
 
 from .config import settings
 
