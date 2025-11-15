@@ -42,6 +42,38 @@ When media is uploaded or created, its unique hash, metadata, and creator’s ve
 - **Storage**: IPFS (via Pinata)
 - **AI Generation**: Pollinations.ai
 
+- ## Setup & Installation
+
+### Backend (FastAPI)
+
+1. Create a virtual environment and install dependencies:
+
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   
+2. Configure environment variables:
+
+DEPLOYER_MNEMONIC – Algorand deployer account mnemonic
+ALGOD_ADDRESS, ALGOD_TOKEN – Algorand / PureStake endpoint
+PINATA_API_KEY, PINATA_API_SECRET – Pinata IPFS credentials
+Optional: SMTP + AI keys as described in backend/README_PROOFCHAIN.md
+
+Run the API:
+uvicorn app.main:app --reload --port 8000
+
+Frontend (React + Vite)
+Install dependencies:
+cd DeepFakenpm install
+
+Start the dev server:
+npm run dev
+Ensure the frontend points to the backend at http://127.0.0.1:8000 for API calls.
+
+Admin Dashboard
+From DeepFake/admin:
+npm installnpm run dev
+
 Short summary: 
 
 -Hashing: SHA-256 (exact) + pHash (perceptual)
@@ -252,6 +284,7 @@ python scripts\compile_deploy_pyteal.py
 
 The script compiles the PyTeal into TEAL, deploys the application, and writes the deployed app id to deployed_app.txt.
 
+Smart contracts deployed Link: https://lora.algokit.io/testnet/application/749309990
 Backend app-call helper
 
 Use backend/algorand_app_utils.py to prepare unsigned application-call transactions (client signs) and submit signed app-call txns. The backend endpoint will return the unsigned app-call JSON for client-side signing.
