@@ -123,7 +123,7 @@ const VerifyMedia: React.FC = () => {
     } catch (err: unknown) {
       setResult(null);
       if (err instanceof Error) {
-        setError(err.message);
+        setError(err.message || "Unable to classify media");
       } else {
         setError("Unable to classify media");
       }
@@ -204,7 +204,7 @@ const VerifyMedia: React.FC = () => {
       setCompareResult(await resp.json());
     } catch (err: unknown) {
       if (err instanceof Error) {
-        alert(err.message);
+        alert(err.message || "Comparison failed");
       } else {
         alert("Comparison failed");
       }
@@ -235,227 +235,213 @@ const VerifyMedia: React.FC = () => {
           </Alert>
         )}
 
-{!result ? (
-  <>
-    <Card className="shadow-2xl border-none">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Search className="w-5 h-5 text-blue-600" />Verification Method
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6 px-8">
-        <div className="flex gap-2">
-          <Button
-            variant={method === "upload" ? "default" : "outline"}
-            onClick={() => setMethod("upload")}
-            className="flex flex-1 items-center justify-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Upload File</span>
-          </Button>
-          <Button
-            variant={method === "ipfs" ? "default" : "outline"}
-            onClick={() => setMethod("ipfs")}
-            className="flex flex-1 items-center justify-center gap-2"
-          >
-            <LinkIcon className="w-4 h-4" />
-            <span>IPFS URL/CID</span>
-          </Button>
-        </div>
-
-        {method === "upload" ? (
-          <div className="space-y-4">
-            <Label>Upload a File to Verify</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 transition-colors">
-              <input
-                type="file"
-                onChange={(event) => setFile((event.target as HTMLInputElement).files?.[0] ?? null)}
-                className="hidden"
-                id="verify-file"
-              />
-              {!file ? (
-                <>
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Drop file here or click to browse</p>
-                  <label htmlFor="verify-file">
-                    <Button type="button">Select File</Button>
-                  </label>
-                </>
-              ) : (
-                <div className="flex items-center justify-center gap-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                  <div className="text-left">
-                    <p className="font-medium">{file.name}</p>
-                    <p className="text-sm text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setFile(null)}>
-                    Remove
+        {!result ? (
+          <Card className="shadow-2xl border-none">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="w-5 h-5 text-blue-600" />Verification Method
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 px-8">
+              <div className="flex gap-2">
+                <Button
+                  variant={method === "upload" ? "default" : "outline"}
+                  onClick={() => setMethod("upload")}
+                  className="flex flex-1 items-center justify-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload File</span>
+                </Button>
+                  <Button
+                    variant={method === "ipfs" ? "default" : "outline"}
+                    onClick={() => setMethod("ipfs")}
+                    className="flex flex-1 items-center justify-center gap-2"
+                  >
+                    <LinkIcon className="w-4 h-4" />
+                    <span>IPFS CID</span>
                   </Button>
                 </div>
-              )}
-            </div>
-            <Button onClick={classifyByFile} disabled={!file || loading} className="w-full bg-blue-600 hover:bg-blue-700 h-12">
-              {loading ? "Verifying..." : "Verify File"}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ipfs-url">IPFS URL or CID</Label>
-              <Input
-                id="ipfs-url"
-                placeholder="Qm..."
-                value={cid}
-                onChange={(event) => setCid(event.target.value)}
-                className="h-12"
-              />
-            </div>
-            <Button onClick={classifyByCid} disabled={!cid.trim() || loading} className="w-full bg-blue-600 hover:bg-blue-700 h-12">
-              {loading ? "Verifying..." : "Verify IPFS Content"}
-            </Button>
-          </div>
+                {method === "upload" ? (
+                  <div className="space-y-4 pt-4">
+                    <Label htmlFor="file-upload" className="text-gray-700">
+                      Upload file to verify
+                    </Label>
+                    <Input
+                      id="file-upload"
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    <Button
+                      className="w-full mt-2"
+                      disabled={!file || loading}
+                      onClick={classifyByFile}
+                    >
+                      {loading ? "Verifying..." : "Verify"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-4">
+                    <Label htmlFor="cid-input" className="text-gray-700">
+                      Enter IPFS CID to verify
+                    </Label>
+                    <Input
+                      id="cid-input"
+                      type="text"
+                      placeholder="Qm..."
+                      value={cid}
+                      onChange={(e) => setCid(e.target.value)}
+                    />
+                    <Button
+                      className="w-full mt-2"
+                      disabled={!cid.trim() || loading}
+                      onClick={classifyByCid}
+                    >
+                      {loading ? "Verifying..." : "Verify"}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
+              <Card className="shadow-2xl border-none overflow-hidden">
+              <CardHeader className={`bg-gradient-to-r ${statusMeta.gradient} text-white`}>
+                <div className="flex items-center gap-4">
+                  {statusMeta.icon}
+                  <div>
+                    <CardTitle className="text-3xl">{statusMeta.text}</CardTitle>
+                    <p className="text-white/90 mt-1">Decision based on canonical hash and embedding similarity.</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-gray-500 text-sm flex items-center gap-2">
+                        <Hash className="w-4 h-4" />Canonical SHA-256
+                      </Label>
+                      <p className="font-mono text-xs mt-1 break-all">{result.query_sha256 || "—"}</p>
+                      <p className="text-xs text-gray-500 mt-1">Canonical strategy: {result.canonical_strategy}</p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-500 text-sm">Similarity Threshold</Label>
+                      <p className="text-sm text-gray-700">{formatPercent(result.similarity_threshold)}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {result.exact_match ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-green-800">Registered Asset</span>
+                          <Badge className="bg-green-600 text-white">Exact</Badge>
+                        </div>
+                        <div className="text-xs text-gray-700 space-y-1">
+                          <div>Unique key: <span className="font-mono break-all">{result.exact_match.unique_reg_key || "—"}</span></div>
+                          <div>Signer: <span className="break-all">{result.exact_match.signer_address || "—"}</span></div>
+                          <div>IPFS CID: <span className="font-mono break-all">{result.exact_match.ipfs_cid || "—"}</span></div>
+                          <div>Algo Tx: <span className="font-mono break-all">{result.exact_match.algo_tx || "—"}</span></div>
+                        </div>
+                      </div>
+                    ) : result.best_match ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-yellow-800">Closest Registered Asset</span>
+                          <Badge className="bg-yellow-500 text-white">Similarity {formatPercent(result.best_match.similarity)}</Badge>
+                        </div>
+                        <div className="text-xs text-gray-700 space-y-1">
+                          <div>Unique key: <span className="font-mono break-all">{result.best_match.unique_reg_key || "—"}</span></div>
+                          <div>Signer: <span className="break-all">{result.best_match.signer_address || "—"}</span></div>
+                          <div>IPFS CID: <span className="font-mono break-all">{result.best_match.ipfs_cid || "—"}</span></div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-red-700">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span>No registered asset or high-similarity derivative found.</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {matches.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-900">Top Similar Registrations</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Similarity</th>
+                            <th className="px-3 py-2 text-left">Unique Reg Key</th>
+                            <th className="px-3 py-2 text-left">Signer</th>
+                            <th className="px-3 py-2 text-left">IPFS CID</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matches.map((match) => (
+                            <tr key={`${match.unique_reg_key}-${match.ipfs_cid}`} className="border-b last:border-0">
+                              <td className="px-3 py-2 whitespace-nowrap">{formatPercent(match.similarity)}</td>
+                              <td className="px-3 py-2 text-xs font-mono break-all">{match.unique_reg_key || "—"}</td>
+                              <td className="px-3 py-2 text-xs break-all">{match.signer_address || "—"}</td>
+                              <td className="px-3 py-2 text-xs font-mono break-all">{match.ipfs_cid || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {result.lineage_graph && <ProvenanceGraph graph={result.lineage_graph} />}
+
+                {compareResult && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-gray-900">Comparison Ensemble Result</h3>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm space-y-1">
+                      {Object.entries(compareResult).map(([key, value]) => (
+                        <div key={key} className="flex justify-between gap-4">
+                          <span className="text-gray-600">{key}</span>
+                          <span className="font-mono text-xs break-all">{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col md:flex-row gap-3 pt-4">
+                  <Button variant="outline" className="w-full md:w-auto" onClick={downloadReport}>
+                    <Download className="w-4 h-4 mr-2" />Download Report
+                  </Button>
+                  {(result.exact_match || result.best_match) && (
+                    <Button variant="outline" className="w-full md:w-auto" onClick={handleCompare} disabled={comparing}>
+                      <Fingerprint className="w-4 h-4 mr-2" />
+                      {comparing ? "Comparing..." : "Run Byte-Level Compare"}
+                    </Button>
+                  )}
+                  {result.exact_match?.algo_tx && (
+                    <Button
+                      variant="outline"
+                      className="w-full md:w-auto"
+                      onClick={() => {
+                        const url = getExplorerUrl(result.exact_match?.algo_tx ?? null);
+                        if (url) window.open(url, "_blank");
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />View on Explorer
+                    </Button>
+                  )}
+                  <Button variant="outline" className="w-full md:w-auto ml-auto" onClick={reset}>
+                    Verify Another
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
-      </CardContent>
-    </Card>
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
-      <Card className="shadow-2xl border-none overflow-hidden">
-        <CardHeader className={`bg-gradient-to-r ${statusMeta.gradient} text-white`}>
-          <div className="flex items-center gap-4">
-            {statusMeta.icon}
-            <div>
-              <CardTitle className="text-3xl">{statusMeta.text}</CardTitle>
-              <p className="text-white/90 mt-1">Decision based on canonical hash and embedding similarity.</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-8 space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-gray-500 text-sm flex items-center gap-2">
-                  <Hash className="w-4 h-4" />Canonical SHA-256
-                </Label>
-                <p className="font-mono text-xs mt-1 break-all">{result.query_sha256 || "—"}</p>
-                <p className="text-xs text-gray-500 mt-1">Canonical strategy: {result.canonical_strategy}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500 text-sm">Similarity Threshold</Label>
-                <p className="text-sm text-gray-700">{formatPercent(result.similarity_threshold)}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {result.exact_match ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-green-800">Registered Asset</span>
-                    <Badge className="bg-green-600 text-white">Exact</Badge>
-                  </div>
-                  <div className="text-xs text-gray-700 space-y-1">
-                    <div>Unique key: <span className="font-mono break-all">{result.exact_match.unique_reg_key || "—"}</span></div>
-                    <div>Signer: <span className="break-all">{result.exact_match.signer_address || "—"}</span></div>
-                    <div>IPFS CID: <span className="font-mono break-all">{result.exact_match.ipfs_cid || "—"}</span></div>
-                    <div>Algo Tx: <span className="font-mono break-all">{result.exact_match.algo_tx || "—"}</span></div>
-                  </div>
-                </div>
-              ) : result.best_match ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-yellow-800">Closest Registered Asset</span>
-                    <Badge className="bg-yellow-500 text-white">Similarity {formatPercent(result.best_match.similarity)}</Badge>
-                  </div>
-                  <div className="text-xs text-gray-700 space-y-1">
-                    <div>Unique key: <span className="font-mono break-all">{result.best_match.unique_reg_key || "—"}</span></div>
-                    <div>Signer: <span className="break-all">{result.best_match.signer_address || "—"}</span></div>
-                    <div>IPFS CID: <span className="font-mono break-all">{result.best_match.ipfs_cid || "—"}</span></div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
-                  <div className="flex items center gap-2 text-red-700">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>No registered asset or high-similarity derivative found.</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {matches.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900">Top Similar Registrations</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Similarity</th>
-                      <th className="px-3 py-2 text-left">Unique Reg Key</th>
-                      <th className="px-3 py-2 text-left">Signer</th>
-                      <th className="px-3 py-2 text-left">IPFS CID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {matches.map((match) => (
-                      <tr key={`${match.unique_reg_key}-${match.ipfs_cid}`} className="border-b last:border-0">
-                        <td className="px-3 py-2 whitespace-nowrap">{formatPercent(match.similarity)}</td>
-                        <td className="px-3 py-2 text-xs font-mono break-all">{match.unique_reg_key || "—"}</td>
-                        <td className="px-3 py-2 text-xs break-all">{match.signer_address || "—"}</td>
-                        <td className="px-3 py-2 text-xs font-mono break-all">{match.ipfs_cid || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {result.lineage_graph && <ProvenanceGraph graph={result.lineage_graph} />}
-
-          {compareResult && (
-            <div className="space-y-2">
-              <h3 className="font-semibold text-gray-900">Comparison Ensemble Result</h3>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm space-y-1">
-                {Object.entries(compareResult).map(([key, value]) => (
-                  <div key={key} className="flex justify-between gap-4">
-                    <span className="text-gray-600">{key}</span>
-                    <span className="font-mono text-xs break-all">{String(value)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col md:flex-row gap-3 pt-4">
-            <Button variant="outline" className="w-full md:w-auto" onClick={downloadReport}>
-              <Download className="w-4 h-4 mr-2" />Download Report
-            </Button>
-            {(result.exact_match || result.best_match) && (
-              <Button variant="outline" className="w-full md:w-auto" onClick={handleCompare} disabled={comparing}>
-                <Fingerprint className="w-4 h-4 mr-2" />
-                {comparing ? "Comparing..." : "Run Byte-Level Compare"}
-              </Button>
-            )}
-            {result.exact_match?.algo_tx && (
-              <Button
-                variant="outline"
-                className="w-full md:w-auto"
-                onClick={() => {
-                  const url = getExplorerUrl(result.exact_match?.algo_tx ?? null);
-                  if (url) window.open(url, "_blank");
-                }}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />View on Explorer
-              </Button>
-            )}
-            <Button variant="outline" className="w-full md:w-auto ml-auto" onClick={reset}>
-              Verify Another
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  </>
-) : null}
       </div>
     </div>
   );
