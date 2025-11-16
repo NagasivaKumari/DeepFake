@@ -43,6 +43,11 @@ Endpoints (summary)
 - POST /media/broadcast_signed_tx – Broadcast a signed payment transaction (base64) to Algorand and return txid + explorer URL.
 - POST /media/broadcast_signed_app_tx – Broadcast a signed application call txn and optionally attach the app txid to an existing registration record.
 - POST /media/server_pay – Send a 1 ALGO payment from the sender account to the deployer address and return txid + explorer URL.
+- GET /media/cid_status/{cid} – Check IPFS availability for a CID via the configured gateway.
+- GET /media/deployer_address – Return the backend’s configured deployer/receiver Algorand address.
+- POST /media/recompute_reg_key – Recompute and persist unique_reg_key (and optionally algo_tx) for existing records matching a given hash.
+- GET /media/trust – Compute a trust score for registrants of a media item based on on-chain presence, KYC, IPFS availability, etc.
+- POST /media/compare – Compare a suspect image against a registered asset (by CID or hash) and return a lightweight tamper/duplicate score.
 
 Security notes
 - Store API keys and private credentials in a secure store or environment variables — never in client-side code.
