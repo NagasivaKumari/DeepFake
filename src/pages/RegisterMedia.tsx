@@ -838,10 +838,6 @@ export default function RegisterMedia() {
                         <video src={generatedPreview} controls className="max-h-64 mx-auto rounded-md shadow-md" />
                       </div>
                     )}
-                    <Alert className="bg-purple-50 border-purple-200">
-                      <Sparkles className="h-4 w-4 text-purple-600" />
-                      <AlertDescription className="text-purple-800">Optional: generate via Pollinations.ai. Result becomes your uploaded file automatically.</AlertDescription>
-                    </Alert>
                   </div>
                 )}
                 {file && (
