@@ -694,9 +694,9 @@ export default function RegisterMedia() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4 overflow-hidden" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Register New Media</h1>
           <p className="text-lg text-gray-600">Upload and verify your AI-generated content on the blockchain</p>
         </div>
