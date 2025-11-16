@@ -290,3 +290,81 @@ Backend app-call helper
 Use backend/algorand_app_utils.py to prepare unsigned application-call transactions (client signs) and submit signed app-call txns. The backend endpoint will return the unsigned app-call JSON for client-side signing.
 
 PPT : https://docs.google.com/presentation/d/1GezNeJRjyPQkZp4Oi4cJe4HUCXP1umcn/edit?usp=drive_link&ouid=116725791494411323852&rtpof=true&sd=true
+
+## Media Classification & Verification (Exact vs Derivative)
+
+The backend provides a unified classification endpoint to support the Verify page logic:
+
+Endpoint: `POST /media/classify`
+
+Parameters (query string):
+- `ipfs_cid` (optional) – classify an already registered CID instead of uploading a file
+- `canonicalize` (bool, default true) – apply non‑destructive watermark inpainting before hashing
+- `similarity_threshold` (float, default 0.92) – minimum cosine similarity for derivative classification
+- `include_matches` (bool) – return top similar matches list
+- `top_k` (int, default 5) – limit of similar matches returned
+
+Multipart Form Fields (when uploading):
+- `suspect` – the file (image) to classify
+
+Response Schema:
+```jsonc
+{
+	"status": "exact_registered" | "derivative" | "unregistered",
+	"query_sha256": "<hex sha256 of canonical bytes>",
+	"canonical_strategy": "inpaint_v1" | "raw" | "raw_no_change" | "error",
+	"exact_match": {
+		"unique_reg_key": "...",
+		"signer_address": "ALGO...",
+		"file_url": "https://...",
+		"ipfs_cid": "Qm...",
+		"sha256_hash": "...",
+		"algo_tx": "<txid or null>"
+	} | null,
+	"best_match": {
+		"unique_reg_key": "...",
+		"signer_address": "ALGO...",
+		"file_url": "https://...",
+		"ipfs_cid": "Qm...",
+		"similarity": 0.95321
+	} | null,
+	"similarity_threshold": 0.92,
+	"matches": [ { "unique_reg_key": "...", "similarity": 0.95, ... } ] // optional when include_matches=true
+}
+```
+
+Decision Logic:
+1. (Optional) Canonicalize image via watermark inpainting (preserves dimensions).
+2. Compute SHA‑256 on canonical bytes. If hash matches any registered `sha256_hash` → `status=exact_registered`.
+3. Else compute embedding and cosine similarity against stored embeddings. If any ≥ threshold → `status=derivative` with `best_match`.
+4. Else → `status=unregistered`.
+
+Example: Upload classification
+```bash
+curl -X POST "http://localhost:8000/media/classify?canonicalize=true&include_matches=true" \
+	-F "suspect=@cat.png"
+```
+
+Example: CID classification
+```bash
+curl -X POST "http://localhost:8000/media/classify?ipfs_cid=QmExampleCid&canonicalize=true"
+```
+
+Frontend Integration:
+- The Verify page (`src/pages/VerifyMedia.tsx`) calls this endpoint and renders badges:
+	- Exact Registered (green)
+	- Derivative / Altered (yellow) with similarity score & original signer
+	- Unregistered (red)
+
+Canonical Hash vs Raw Hash:
+Currently the system hashes the canonical (potentially cleaned) bytes. If you need both raw and canonical hashes, extend `/media/classify` & registration to store an additional `raw_sha256_hash` field before inpainting.
+
+Adjusting Sensitivity:
+- Raise `similarity_threshold` above 0.95 to reduce false derivatives.
+- Lower to e.g. 0.88 to capture more distant edits.
+
+Future Enhancements:
+- Perceptual hash fallback tier
+- Multi‑band watermark detection
+- ANN index (FAISS) for scalability
+- Provenance chain visualization (graph of near duplicates)
