@@ -28,6 +28,7 @@ import {
   Download,
   ExternalLink,
   Fingerprint,
+  Sparkles,
 } from "lucide-react";
 import getLute from "@/utils/luteClient";
 import { motion } from "framer-motion";
@@ -141,6 +142,9 @@ const AI_MODELS = [
 export default function RegisterMedia() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedPreview, setGeneratedPreview] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [formData, setFormData] = useState({
     ai_model: "",
@@ -248,6 +252,48 @@ export default function RegisterMedia() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+    }
+  };
+
+  // Utility to convert data URL to File for registration flow
+  function dataURLtoFile(dataUrl: string, filename: string): File {
+    const parts = dataUrl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const bstr = atob(parts[1]);
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new File([u8arr], filename, { type: mime });
+  }
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    setIsGenerating(true);
+    setRegistrationError(null);
+    try {
+      const resp = await fetch(`${API_BASE}/ai/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim(), type: 'image' })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Generation failed: ${txt || resp.status}`);
+      }
+      const j = await resp.json();
+      const dataUrl = j.result as string;
+      if (!dataUrl || !dataUrl.startsWith('data:image')) {
+        throw new Error('Invalid image data returned from AI service');
+      }
+      // Create a synthetic file and set it as the selected file
+      const synthetic = dataURLtoFile(dataUrl, `ai-generated-${Date.now()}.png`);
+      setFile(synthetic);
+      setGeneratedPreview(dataUrl);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setRegistrationError(msg);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -702,6 +748,38 @@ export default function RegisterMedia() {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-6">
+            {/* AI Generation Section */}
+            <Card className="shadow-xl border-none">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-purple-600" /> Generate AI Image (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ai_prompt">Prompt</Label>
+                  <Textarea id="ai_prompt" placeholder="Describe the image you want to generate..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button type="button" onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="bg-purple-600 hover:bg-purple-700">
+                    {isGenerating ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>) : (<><Sparkles className="w-4 h-4 mr-2" /> Generate & Use Image</>)}
+                  </Button>
+                  {generatedPreview && (
+                    <Button type="button" variant="outline" onClick={() => { setFile(null); setGeneratedPreview(null); }}>
+                      Remove Generated
+                    </Button>
+                  )}
+                </div>
+                {generatedPreview && (
+                  <div className="mt-4 rounded-lg border bg-white p-4">
+                    <p className="text-sm text-gray-600 mb-2">Preview</p>
+                    <img src={generatedPreview} alt="AI Generated Preview" className="max-h-64 mx-auto rounded-md shadow-md" />
+                  </div>
+                )}
+                <Alert className="bg-purple-50 border-purple-200">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  <AlertDescription className="text-purple-800">Use Pollinations.ai to rapidly prototype content. Generated image is treated as if uploaded manually.</AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
             <Card className="shadow-xl border-none">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Upload className="w-5 h-5 text-blue-600" /> Upload Media File</CardTitle>
