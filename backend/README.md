@@ -38,7 +38,12 @@ Endpoints (summary)
 - GET /media/registrants – List registrants for a given sha256_hash or cid, including txid and explorer URL.
 - POST /media/derive_keys – Derive content_key and unique_reg_key from a given sha256_hash and optional nonce/txid.
 - POST /media/verify – Verify a signature via Lute and return the recovered address or verification status.
-Security notes
+- GET /media/tx_status/{txid} – Check if an Algorand transaction exists and whether it is confirmed.
+- GET /media/algod_params – Fetch suggested transaction parameters from the configured Algorand node for frontend txn construction.
+- POST /media/broadcast_signed_tx – Broadcast a signed payment transaction (base64) to Algorand and return txid + explorer URL.
+- POST /media/broadcast_signed_app_tx – Broadcast a signed application call txn and optionally attach the app txid to an existing registration record.
+- POST /media/server_pay – Send a 1 ALGO payment from the sender account to the deployer address and return txid + explorer URL.
 
+Security notes
 - Store API keys and private credentials in a secure store or environment variables — never in client-side code.
 - Require wallet signature on the client and verify on the server before accepting registration requests.
