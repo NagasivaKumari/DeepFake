@@ -145,6 +145,7 @@ export default function RegisterMedia() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPreview, setGeneratedPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [dragActive, setDragActive] = useState(false);
   const [formData, setFormData] = useState({
     ai_model: "",
@@ -274,21 +275,39 @@ export default function RegisterMedia() {
       const resp = await fetch(`${API_BASE}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim(), type: 'image' })
+        body: JSON.stringify({ prompt: prompt.trim(), type: mediaType })
       });
       if (!resp.ok) {
         const txt = await resp.text();
         throw new Error(`Generation failed: ${txt || resp.status}`);
       }
       const j = await resp.json();
-      const dataUrl = j.result as string;
-      if (!dataUrl || !dataUrl.startsWith('data:image')) {
-        throw new Error('Invalid image data returned from AI service');
+      const resultVal = j.result as string;
+      if (mediaType === 'image') {
+        if (!resultVal || !resultVal.startsWith('data:image')) {
+          throw new Error('Invalid image data returned from AI service');
+        }
+        const synthetic = dataURLtoFile(resultVal, `ai-generated-${Date.now()}.png`);
+        setFile(synthetic);
+        setGeneratedPreview(resultVal);
+      } else {
+        // video: result should be a URL; fetch and convert to File
+        if (!resultVal || !/^https?:/i.test(resultVal)) {
+          throw new Error('Invalid video URL returned from AI service');
+        }
+        try {
+          const vidResp = await fetch(resultVal);
+          if (!vidResp.ok) throw new Error(`Failed to retrieve video asset (${vidResp.status})`);
+          const blob = await vidResp.blob();
+          const ext = blob.type === 'video/mp4' ? 'mp4' : 'webm';
+          const fileName = `ai-generated-${Date.now()}.${ext}`;
+          const syntheticVideo = new File([blob], fileName, { type: blob.type || 'video/mp4' });
+          setFile(syntheticVideo);
+          setGeneratedPreview(URL.createObjectURL(blob));
+        } catch (ve) {
+          throw ve instanceof Error ? ve : new Error(String(ve));
+        }
       }
-      // Create a synthetic file and set it as the selected file
-      const synthetic = dataURLtoFile(dataUrl, `ai-generated-${Date.now()}.png`);
-      setFile(synthetic);
-      setGeneratedPreview(dataUrl);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setRegistrationError(msg);
@@ -748,38 +767,7 @@ export default function RegisterMedia() {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-6">
-            {/* AI Generation Section */}
-            <Card className="shadow-xl border-none">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-purple-600" /> Generate AI Image (Optional)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ai_prompt">Prompt</Label>
-                  <Textarea id="ai_prompt" placeholder="Describe the image you want to generate..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button type="button" onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="bg-purple-600 hover:bg-purple-700">
-                    {isGenerating ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>) : (<><Sparkles className="w-4 h-4 mr-2" /> Generate & Use Image</>)}
-                  </Button>
-                  {generatedPreview && (
-                    <Button type="button" variant="outline" onClick={() => { setFile(null); setGeneratedPreview(null); }}>
-                      Remove Generated
-                    </Button>
-                  )}
-                </div>
-                {generatedPreview && (
-                  <div className="mt-4 rounded-lg border bg-white p-4">
-                    <p className="text-sm text-gray-600 mb-2">Preview</p>
-                    <img src={generatedPreview} alt="AI Generated Preview" className="max-h-64 mx-auto rounded-md shadow-md" />
-                  </div>
-                )}
-                <Alert className="bg-purple-50 border-purple-200">
-                  <Sparkles className="h-4 w-4 text-purple-600" />
-                  <AlertDescription className="text-purple-800">Use Pollinations.ai to rapidly prototype content. Generated image is treated as if uploaded manually.</AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
+            
             <Card className="shadow-xl border-none">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Upload className="w-5 h-5 text-blue-600" /> Upload Media File</CardTitle>
@@ -805,12 +793,82 @@ export default function RegisterMedia() {
                     </div>
                   )}
                 </div>
+                {/* Integrated Generation (optional) appears when no file selected */}
+                {!file && (
+                  <div className="mt-8 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      <h3 className="text-sm font-semibold text-gray-700">Or Generate AI {mediaType === 'image' ? 'Image' : 'Video'}</h3>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="space-y-1 md:col-span-1">
+                        <Label>Type</Label>
+                        <Select value={mediaType} onValueChange={(v) => setMediaType(v as 'image' | 'video')}>
+                          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="image">Image</SelectItem>
+                            <SelectItem value="video">Video</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="md:col-span-2 space-y-1">
+                        <Label htmlFor="ai_prompt">Prompt</Label>
+                        <Textarea id="ai_prompt" placeholder="Describe what to generate (e.g. 'a futuristic city at dusk')" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button type="button" onClick={handleGenerate} disabled={isGenerating || !prompt.trim()} className="bg-purple-600 hover:bg-purple-700">
+                        {isGenerating ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>) : (<><Sparkles className="w-4 h-4 mr-2" /> Generate & Use {mediaType === 'image' ? 'Image' : 'Video'}</>)}
+                      </Button>
+                      {generatedPreview && (
+                        <Button type="button" variant="outline" onClick={() => { setFile(null); setGeneratedPreview(null); setPrompt(''); }}>
+                          Reset Generation
+                        </Button>
+                      )}
+                    </div>
+                    {generatedPreview && mediaType === 'image' && (
+                      <div className="mt-4 rounded-lg border bg-white p-4">
+                        <p className="text-sm text-gray-600 mb-2">Preview</p>
+                        <img src={generatedPreview} alt="AI Generated Preview" className="max-h-64 mx-auto rounded-md shadow-md" />
+                      </div>
+                    )}
+                    {generatedPreview && mediaType === 'video' && (
+                      <div className="mt-4 rounded-lg border bg-white p-4">
+                        <p className="text-sm text-gray-600 mb-2">Preview</p>
+                        <video src={generatedPreview} controls className="max-h-64 mx-auto rounded-md shadow-md" />
+                      </div>
+                    )}
+                    <Alert className="bg-purple-50 border-purple-200">
+                      <Sparkles className="h-4 w-4 text-purple-600" />
+                      <AlertDescription className="text-purple-800">Optional: generate via Pollinations.ai. Result becomes your uploaded file automatically.</AlertDescription>
+                    </Alert>
+                  </div>
+                )}
                 {file && (
                   <div className="mt-6 space-y-3">
                     <div className="flex gap-2">
                       <Badge variant="outline" className="bg-blue-50"><Hash className="w-3 h-3 mr-1" /> SHA-256 will be generated</Badge>
                       <Badge variant="outline" className="bg-purple-50"><Fingerprint className="w-3 h-3 mr-1" /> Perceptual hash enabled</Badge>
                     </div>
+                    {/* Inline preview for generated or uploaded media */}
+                    {(generatedPreview || (file.type && (file.type.startsWith('image/') || file.type.startsWith('video/')))) && (
+                      <div className="mt-4 rounded-lg border bg-white p-4">
+                        <p className="text-sm text-gray-600 mb-2">Preview</p>
+                        {file.type.startsWith('video/') ? (
+                          <video
+                            src={generatedPreview || URL.createObjectURL(file)}
+                            controls
+                            className="max-h-64 mx-auto rounded-md shadow-md"
+                          />
+                        ) : (
+                          <img
+                            src={generatedPreview || URL.createObjectURL(file)}
+                            alt="Selected Media Preview"
+                            className="max-h-64 mx-auto rounded-md shadow-md"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

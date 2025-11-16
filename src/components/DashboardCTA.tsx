@@ -13,7 +13,7 @@ const DashboardCTA = () => {
           <Button className="bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6">
             Get Started Now
           </Button>
-          <Button className="bg-transparent border-2 border-white text-white hover:bg-white/10 text-lg px-8 py-6">
+          <Button className="bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6">
             Explore API
           </Button>
         </div>

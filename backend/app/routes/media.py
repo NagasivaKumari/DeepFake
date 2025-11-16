@@ -1,4 +1,3 @@
-
 import sys
 from ..config import settings
 print("[STARTUP] settings.PINATA_API_KEY:", getattr(settings, 'PINATA_API_KEY', None), file=sys.stderr)
@@ -39,6 +38,16 @@ def _mask_secret(s: str | None) -> str:
         return s
     return f"{s[:4]}...{s[-4:]}"
 
+# Generic wallet address masker (non-destructive; we always keep full address in storage and logic).
+# Returned alongside full address so callers can choose which to display.
+def _mask_address(addr: str | None, prefix: int = 6, suffix: int = 4) -> str | None:
+    if not addr:
+        return None
+    a = addr.strip()
+    if len(a) <= prefix + suffix + 3:  # already short, skip masking
+        return a
+    return f"{a[:prefix]}...{a[-suffix:]}"
+
 print(f"[STARTUP] PINATA_API_KEY={_mask_secret(settings.PINATA_API_KEY)}")
 print(f"[STARTUP] PINATA_API_SECRET={_mask_secret(settings.PINATA_API_SECRET)}")
 
@@ -51,6 +60,338 @@ except Exception:
     LUTE_AVAILABLE = False
 
 router = APIRouter(prefix="/media", tags=["media"])
+
+# --- Embedding & similarity helpers ---
+def _cosine(a: list[float] | None, b: list[float] | None) -> float:
+    try:
+        if not a or not b or len(a) != len(b):
+            return -1.0
+        num = 0.0
+        da = 0.0
+        db = 0.0
+        for x, y in zip(a, b):
+            num += x * y
+            da += x * x
+            db += y * y
+        if da <= 0 or db <= 0:
+            return -1.0
+        import math
+        return num / (math.sqrt(da) * math.sqrt(db))
+    except Exception:
+        return -1.0
+
+def _maybe_crop_watermark(img_bytes: bytes) -> bytes:
+    """Heuristically remove a bottom watermark band by INPAINTING (not cropping).
+
+    We detect a luminance-shifted bottom band (~12% height). If detected we replace it
+    with a blurred clone of the region directly above, preserving original dimensions
+    so UI/layout isn't truncated. Falls back to original bytes on errors or weak signal.
+    """
+    try:
+        from PIL import Image, ImageFilter  # type: ignore
+        import io
+        im = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        h = im.height
+        band = max(8, int(h * 0.12))
+        if band >= h or band < 8:
+            return img_bytes
+        bottom = im.crop((0, h - band, im.width, h))
+        mid = im.crop((0, int(h * 0.44), im.width, int(h * 0.56)))
+        # brightness samples
+        b_small = bottom.resize((32, 8))
+        m_small = mid.resize((32, 8))
+        b_vals = [p[0] + p[1] + p[2] for p in b_small.getdata()]
+        m_vals = [p[0] + p[1] + p[2] for p in m_small.getdata()]
+        b_avg = sum(b_vals) / len(b_vals)
+        m_avg = sum(m_vals) / len(m_vals)
+        if abs(b_avg - m_avg) < 15:  # not distinct enough
+            return img_bytes
+        # Choose source region just above watermark band (same height if possible)
+        src_top = max(0, h - (band * 2))
+        if src_top >= h - band:  # insufficient room
+            return img_bytes
+        src_region = im.crop((0, src_top, im.width, h - band))
+        # Resize source region to band height and apply slight blur to mask seams
+        filler = src_region.resize((im.width, band)).filter(ImageFilter.GaussianBlur(radius=1.2))
+        # Paste filler over bottom band
+        im.paste(filler, (0, h - band))
+        out = io.BytesIO()
+        im.save(out, format="PNG")
+        return out.getvalue()
+    except Exception:
+        return img_bytes
+
+
+def _crop_watermark_with_info(img_bytes: bytes):
+    """Return (processed_bytes, info_dict) using inpainting (no cropping).
+
+    info_dict keys:
+      - cleaned: bool (watermark region replaced)
+      - original_height: int
+      - band_size: int | None
+      - avg_bottom: float | None
+      - avg_mid: float | None
+      - reason: str
+      - strategy: str
+    """
+    info = {
+        "cleaned": False,
+        "original_height": None,
+        "band_size": None,
+        "avg_bottom": None,
+        "avg_mid": None,
+        "reason": "init",
+        "strategy": None,
+    }
+    try:
+        from PIL import Image, ImageFilter  # type: ignore
+        import io
+        im = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        h = im.height
+        info["original_height"] = h
+        band = max(8, int(h * 0.12))
+        if band >= h or band < 8:
+            info["reason"] = "band too small"
+            return img_bytes, info
+        bottom = im.crop((0, h - band, im.width, h))
+        mid = im.crop((0, int(h * 0.44), im.width, int(h * 0.56)))
+        b_small = bottom.resize((32, 8))
+        m_small = mid.resize((32, 8))
+        b_vals = [p[0] + p[1] + p[2] for p in b_small.getdata()]
+        m_vals = [p[0] + p[1] + p[2] for p in m_small.getdata()]
+        b_avg = sum(b_vals) / len(b_vals)
+        m_avg = sum(m_vals) / len(m_vals)
+        info["band_size"] = band
+        info["avg_bottom"] = round(b_avg, 2)
+        info["avg_mid"] = round(m_avg, 2)
+        if abs(b_avg - m_avg) < 15:
+            info["reason"] = "luminance diff below threshold"
+            return img_bytes, info
+        src_top = max(0, h - (band * 2))
+        if src_top >= h - band:
+            info["reason"] = "insufficient source region"
+            return img_bytes, info
+        src_region = im.crop((0, src_top, im.width, h - band))
+        filler = src_region.resize((im.width, band)).filter(ImageFilter.GaussianBlur(radius=1.2))
+        im.paste(filler, (0, h - band))
+        out = io.BytesIO()
+        im.save(out, format="PNG")
+        new_bytes = out.getvalue()
+        info["cleaned"] = True
+        info["reason"] = "watermark band replaced"
+        info["strategy"] = "clone_above_blur"
+        return new_bytes, info
+    except Exception as e:
+        info["reason"] = f"error: {e}"
+        return img_bytes, info
+
+
+def _build_provenance_graph(
+    *,
+    query_sha256: str | None,
+    canonical_strategy: str,
+    query_ipfs_cid: str | None,
+    query_source_url: str | None,
+    best_item: dict | None,
+    best_similarity: float,
+    match_candidates: list[tuple[dict, float]],
+    match_summaries: list[dict],
+    media: list,
+    similarity_threshold: float,
+    graph_top_k: int,
+) -> dict | None:
+    """Build a trimmed provenance graph for visualization on the client."""
+
+    def _node_identifier(item: dict | None) -> str | None:
+        if not isinstance(item, dict):
+            return None
+        for key in ("unique_reg_key", "sha256_hash", "ipfs_cid"):
+            value = item.get(key)
+            if value:
+                return str(value)
+        return None
+
+    TYPE_PRIORITY = {
+        "query": 5,
+        "anchor": 4,
+        "declared": 3,
+        "duplicate": 2,
+        "match": 1,
+        "neighbor": 1,
+    }
+
+    def _round_val(value: float | None) -> float | None:
+        if value is None:
+            return None
+        try:
+            return round(float(value), 5)
+        except Exception:
+            return None
+
+    node_map: dict[str, dict] = {}
+    edge_keys: set[tuple[str, str, str]] = set()
+    edges: list[dict] = []
+
+    def add_node(item: dict | None, node_type: str, *, similarity: float | None = None) -> str | None:
+        node_id = _node_identifier(item)
+        if not node_id:
+            return None
+        existing = node_map.get(node_id)
+        similarity_value = _round_val(similarity)
+        if existing:
+            if similarity_value is not None and existing.get("similarity") is None:
+                existing["similarity"] = similarity_value
+            if TYPE_PRIORITY.get(node_type, 0) > TYPE_PRIORITY.get(existing.get("type", ""), 0):
+                existing["type"] = node_type
+            return node_id
+
+        label = item.get("file_name") if isinstance(item, dict) else None
+        if not label and node_type != "query":
+            trunc = node_id[:10]
+            label = f"{trunc}..." if len(node_id) > 13 else node_id
+
+        node_map[node_id] = {
+            "id": node_id,
+            "label": label or ("Query Asset" if node_type == "query" else node_id),
+            "type": node_type,
+            "signer_address": item.get("signer_address") if isinstance(item, dict) else None,
+            "sha256_hash": item.get("sha256_hash") if isinstance(item, dict) else None,
+            "ipfs_cid": item.get("ipfs_cid") if isinstance(item, dict) else None,
+            "file_url": item.get("file_url") if isinstance(item, dict) else None,
+            "algo_tx": item.get("algo_tx") if isinstance(item, dict) else None,
+            "content_key": item.get("content_key") if isinstance(item, dict) else None,
+            "status": item.get("status") if isinstance(item, dict) else None,
+            "generation_time": item.get("generation_time") if isinstance(item, dict) else None,
+            "similarity": similarity_value,
+        }
+        return node_id
+
+    def add_edge(source: str | None, target: str | None, *, similarity: float | None, relationship: str) -> None:
+        if not source or not target or source == target:
+            return
+        key = (source, target, relationship)
+        if key in edge_keys:
+            return
+        edge_keys.add(key)
+        edges.append(
+            {
+                "source": source,
+                "target": target,
+                "relationship": relationship,
+                "similarity": _round_val(similarity),
+            }
+        )
+
+    # Seed suspect / query node
+    suspect_id = "suspect"
+    node_map[suspect_id] = {
+        "id": suspect_id,
+        "label": "Query Asset",
+        "type": "query",
+        "sha256_hash": query_sha256,
+        "ipfs_cid": query_ipfs_cid,
+        "source_url": query_source_url,
+        "canonical_strategy": canonical_strategy,
+    }
+
+    def _push_unique(accum: list[tuple[dict, float]], item: dict | None, score: float) -> None:
+        if not isinstance(item, dict):
+            return
+        node_id = _node_identifier(item)
+        if not node_id:
+            return
+        if any(node_id == _node_identifier(existing) for existing, _ in accum):
+            return
+        accum.append((item, score))
+
+    candidate_pairs: list[tuple[dict, float]] = []
+    if isinstance(best_item, dict):
+        _push_unique(candidate_pairs, best_item, best_similarity if best_similarity is not None else 1.0)
+
+    try:
+        sorted_candidates = sorted(match_candidates, key=lambda p: p[1], reverse=True)
+    except Exception:
+        sorted_candidates = match_candidates
+
+    for itm, score in sorted_candidates:
+        _push_unique(candidate_pairs, itm, score)
+        if len(candidate_pairs) >= graph_top_k:
+            break
+
+    anchor_id = None
+    if candidate_pairs:
+        anchor_id = add_node(candidate_pairs[0][0], "anchor", similarity=candidate_pairs[0][1])
+
+    unique_lookup = {
+        itm.get("unique_reg_key"): itm
+        for itm in media
+        if isinstance(itm, dict) and itm.get("unique_reg_key")
+    }
+
+    match_id_set = set()
+    for summary in match_summaries:
+        if isinstance(summary, dict):
+            uid = summary.get("unique_reg_key") or summary.get("ipfs_cid")
+            if uid:
+                match_id_set.add(str(uid))
+
+    for item, score in candidate_pairs:
+        node_id = add_node(
+            item,
+            "anchor" if anchor_id and _node_identifier(item) == anchor_id else ("match" if score >= similarity_threshold else "neighbor"),
+            similarity=score,
+        )
+        if not node_id:
+            continue
+        add_edge(
+            suspect_id,
+            node_id,
+            similarity=score,
+            relationship="query_match" if node_id in match_id_set or score >= similarity_threshold else "query_neighbor",
+        )
+        if anchor_id and node_id != anchor_id:
+            add_edge(anchor_id, node_id, similarity=score, relationship="similarity")
+
+    anchor_item = candidate_pairs[0][0] if candidate_pairs else best_item
+    if anchor_id and isinstance(anchor_item, dict):
+        content_key = anchor_item.get("content_key")
+        if content_key:
+            for itm in media:
+                if itm is anchor_item:
+                    continue
+                if itm.get("content_key") == content_key:
+                    dup_id = add_node(itm, "duplicate", similarity=1.0)
+                    add_edge(anchor_id, dup_id, similarity=1.0, relationship="same_content")
+
+    if anchor_id:
+        anchor_key = None
+        if isinstance(anchor_item, dict):
+            anchor_key = anchor_item.get("unique_reg_key")
+        for itm in media:
+            parent_key = itm.get("near_duplicate_of")
+            if parent_key and parent_key == anchor_key:
+                child_id = add_node(itm, "declared", similarity=itm.get("near_duplicate_similarity"))
+                add_edge(anchor_id, child_id, similarity=itm.get("near_duplicate_similarity"), relationship="declared_lineage")
+
+    if isinstance(anchor_item, dict):
+        parent_key = anchor_item.get("near_duplicate_of")
+        if parent_key:
+            parent_item = unique_lookup.get(parent_key)
+            parent_id = add_node(parent_item, "anchor")
+            if parent_id:
+                add_edge(parent_id, anchor_id or parent_id, similarity=anchor_item.get("near_duplicate_similarity"), relationship="declared_lineage")
+
+    if len(node_map) <= 1:
+        return None
+
+    return {
+        "nodes": list(node_map.values()),
+        "edges": edges,
+        "suspect_id": suspect_id,
+        "anchor_id": anchor_id,
+        "threshold": similarity_threshold,
+        "graph_top_k": graph_top_k,
+    }
 
 
 @router.post("/generate")
@@ -127,6 +468,7 @@ def generate_media(payload: GenerateRequest):
         "result": result.get("result"),
         "algo_tx": algo_tx,
         "algo_explorer_url": explorer_url,
+        "receiver_address_masked": _mask_address(getattr(payload, 'wallet_address', None)),
         "detail": "Image generated and transaction processed"
     }
 
@@ -381,6 +723,54 @@ def register_media(payload: RegisterRequest):
     except Exception:
         pass
 
+    # --- Embedding computation (original + cropped) ---
+    embedding = None
+    embedding_source = None
+    try:
+        from ..light_detectors import get_embedding_from_bytes  # type: ignore
+        # Fetch file bytes from file_url (IPFS gateway). Avoid very large files (>10MB) for now.
+        if file_url:
+            try:
+                r = requests.get(file_url, timeout=30)
+                if r.status_code < 400 and len(r.content) < 10_000_000:
+                    orig_bytes = r.content
+                    cleaned_bytes = _maybe_crop_watermark(orig_bytes)
+                    use_bytes = cleaned_bytes if cleaned_bytes != orig_bytes else orig_bytes
+                    embedding_source = "cleaned" if use_bytes is cleaned_bytes else "original"
+                    emb_vec = get_embedding_from_bytes(use_bytes)
+                    # Round floats for storage compactness
+                    embedding = [round(float(x), 5) for x in emb_vec][:512]
+            except Exception as e:
+                reg_data["embedding_error"] = f"fetch/embed failed: {e}"  # store diagnostic
+    except Exception as e:
+        reg_data["embedding_error"] = f"embedding module unavailable: {e}"
+
+    if embedding:
+        reg_data["embedding"] = embedding
+        reg_data["embedding_source"] = embedding_source
+
+    # Load existing media again if not already loaded (media variable present). Use for lineage detection.
+    try:
+        existing = media if isinstance(media, list) else []
+        best_sim = -1.0
+        best_reg = None
+        if embedding:
+            for item in existing:
+                try:
+                    emb2 = item.get("embedding")
+                    sim = _cosine(embedding, emb2)
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_reg = item
+                except Exception:
+                    continue
+        # Similarity threshold (tunable). High to avoid false lineage.
+        if best_reg and best_sim >= 0.92:
+            reg_data["near_duplicate_of"] = best_reg.get("unique_reg_key") or best_reg.get("algo_tx")
+            reg_data["near_duplicate_similarity"] = round(best_sim, 5)
+    except Exception:
+        pass
+
     media.append(reg_data)
     try:
         MEDIA_FILE.write_text(json.dumps(media, indent=2))
@@ -428,6 +818,403 @@ def register_media(payload: RegisterRequest):
             "reg_key": reg_key_hex,
         }
     return response
+
+
+@router.post("/search_similar")
+def search_similar(suspect: UploadFile = File(None), ipfs_cid: str | None = None, threshold: float = 0.9, top_k: int = 5):
+    """Return top-K registered media items with embedding similarity above a threshold.
+
+    Provide either an uploaded file (suspect) or an existing ipfs_cid to reuse stored file_url.
+    Response: { matches: [ { unique_reg_key, signer_address, similarity, file_url, ipfs_cid } ], count }
+    """
+    from pathlib import Path
+    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+    MEDIA_FILE = DATA_PATH / "registered_media.json"
+    if not MEDIA_FILE.exists():
+        return {"matches": [], "count": 0}
+    try:
+        media = json.loads(MEDIA_FILE.read_text())
+    except Exception:
+        media = []
+    # Acquire bytes
+    suspect_bytes = None
+    if suspect:
+        try:
+            suspect_bytes = suspect.file.read()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read suspect upload: {e}")
+    elif ipfs_cid:
+        # Find file_url from registry or build gateway URL
+        rec = next((m for m in media if m.get("ipfs_cid") == ipfs_cid and m.get("file_url")), None)
+        file_url = rec.get("file_url") if rec else None
+        if not file_url:
+            gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
+            if gateway_domain:
+                if str(gateway_domain).startswith("http://") or str(gateway_domain).startswith("https://"):
+                    base = str(gateway_domain).rstrip('/')
+                else:
+                    base = f"https://{str(gateway_domain).rstrip('/')}"
+                file_url = f"{base}/ipfs/{ipfs_cid}"
+            else:
+                file_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
+        try:
+            r = requests.get(file_url, timeout=30)
+            if r.status_code >= 400:
+                raise HTTPException(status_code=502, detail=f"Failed to fetch cid file: {r.status_code}")
+            suspect_bytes = r.content
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Fetch error: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Provide suspect upload or ipfs_cid")
+
+    # Compute embedding
+    try:
+        from ..light_detectors import get_embedding_from_bytes  # type: ignore
+        cropped = _maybe_crop_watermark(suspect_bytes)
+        use_bytes = cropped if cropped != suspect_bytes else suspect_bytes
+        emb_vec = get_embedding_from_bytes(use_bytes)
+        query_emb = [float(x) for x in emb_vec][:512]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Embedding computation failed: {e}")
+
+    # Compare
+    matches = []
+    for m in media:
+        try:
+            emb2 = m.get("embedding")
+            if not isinstance(emb2, list):
+                continue
+            sim = _cosine(query_emb, emb2)
+            if sim >= threshold:
+                matches.append({
+                    "unique_reg_key": m.get("unique_reg_key"),
+                    "signer_address": m.get("signer_address"),
+                    "similarity": round(sim, 5),
+                    "file_url": m.get("file_url"),
+                    "ipfs_cid": m.get("ipfs_cid"),
+                    "near_duplicate_of": m.get("near_duplicate_of"),
+                })
+        except Exception:
+            continue
+    matches.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+    return {"matches": matches[:top_k], "count": len(matches)}
+
+
+@router.post("/classify")
+def classify_media(
+    suspect: UploadFile = File(None),
+    ipfs_cid: str | None = None,
+    canonicalize: bool = True,
+    similarity_threshold: float = 0.92,
+    include_matches: bool = False,
+        top_k: int = 5,
+        include_graph: bool = False,
+        graph_top_k: int = 8,
+):
+    """Classify an input image (uploaded file or existing ipfs_cid) against registered catalog.
+
+    Response schema:
+      {
+        status: "exact_registered" | "derivative" | "unregistered",
+        query_sha256: str,
+        canonical_strategy: str,
+        exact_match: { unique_reg_key, signer_address, file_url, ipfs_cid, sha256_hash, algo_tx } | null,
+        best_match: { unique_reg_key, signer_address, file_url, ipfs_cid, similarity } | null,
+        similarity_threshold: float,
+        matches?: [ ... ] (if include_matches=true),
+                lineage_graph?: { nodes: [...], edges: [...] } | null (when include_graph=true)
+      }
+
+    Canonicalization currently applies watermark inpainting (clone_above_blur) if detected.
+    This allows "original with watermark" vs "same image cleaned" to still be derivative when
+    bytes differ but visual content is near-identical.
+    """
+    from pathlib import Path
+    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+    MEDIA_FILE = DATA_PATH / "registered_media.json"
+    if not MEDIA_FILE.exists():
+        return {
+            "status": "unregistered",
+            "query_sha256": None,
+            "canonical_strategy": "none" if not canonicalize else "inpaint_v1",
+            "exact_match": None,
+            "best_match": None,
+            "similarity_threshold": similarity_threshold,
+            "matches": [] if include_matches else None,
+            "lineage_graph": None,
+        }
+    try:
+        media = json.loads(MEDIA_FILE.read_text())
+    except Exception:
+        media = []
+
+    # Acquire suspect bytes
+    suspect_bytes = None
+    source_url = None
+    if suspect:
+        try:
+            suspect_bytes = suspect.file.read()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read upload: {e}")
+    elif ipfs_cid:
+        # Attempt to reuse stored file_url; fallback to gateway construction
+        rec = next((m for m in media if m.get("ipfs_cid") == ipfs_cid and m.get("file_url")), None)
+        source_url = rec.get("file_url") if rec else None
+        if not source_url:
+            gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
+            if gateway_domain:
+                if str(gateway_domain).startswith("http://") or str(gateway_domain).startswith("https://"):
+                    base = str(gateway_domain).rstrip('/')
+                else:
+                    base = f"https://{str(gateway_domain).rstrip('/')}"
+                source_url = f"{base}/ipfs/{ipfs_cid}"
+            else:
+                source_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
+        try:
+            r = requests.get(source_url, timeout=30)
+            if r.status_code >= 400:
+                raise HTTPException(status_code=502, detail=f"Failed to fetch cid file: {r.status_code}")
+            suspect_bytes = r.content
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Fetch error: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Provide suspect upload or ipfs_cid")
+
+    if not suspect_bytes:
+        raise HTTPException(status_code=500, detail="No suspect bytes loaded")
+
+    # Canonicalization (optional)
+    canonical_strategy = "inpaint_v1" if canonicalize else "raw"
+    processed_bytes = _maybe_crop_watermark(suspect_bytes) if canonicalize else suspect_bytes
+    # If canonicalization made no change, treat as raw
+    if processed_bytes == suspect_bytes and canonicalize:
+        canonical_strategy = "raw_no_change"
+
+    # Compute sha256 of canonical bytes
+    query_sha256 = hashlib.sha256(processed_bytes).hexdigest()
+
+    # Exact match search (by sha256_hash stored)
+    exact_rec = None
+    for item in media:
+        try:
+            item_sha = item.get('sha256_hash') or ''
+            item_sha = item_sha[2:] if item_sha.startswith('0x') else item_sha
+            if item_sha.lower() == query_sha256.lower():
+                exact_rec = item
+                break
+        except Exception:
+            continue
+
+    # If exact match found, return immediately (no embedding computation needed)
+    if exact_rec:
+        graph_payload = None
+        if include_graph:
+            graph_payload = _build_provenance_graph(
+                query_sha256=query_sha256,
+                canonical_strategy=canonical_strategy,
+                query_ipfs_cid=ipfs_cid,
+                query_source_url=source_url,
+                best_item=exact_rec,
+                best_similarity=1.0,
+                match_candidates=[(exact_rec, 1.0)],
+                match_summaries=[
+                    {
+                        "unique_reg_key": exact_rec.get("unique_reg_key"),
+                        "signer_address": exact_rec.get("signer_address"),
+                        "file_url": exact_rec.get("file_url"),
+                        "ipfs_cid": exact_rec.get("ipfs_cid"),
+                        "similarity": 1.0,
+                    }
+                ],
+                media=media,
+                similarity_threshold=similarity_threshold,
+                graph_top_k=graph_top_k,
+            )
+        return {
+            "status": "exact_registered",
+            "query_sha256": query_sha256,
+            "canonical_strategy": canonical_strategy,
+            "exact_match": {
+                "unique_reg_key": exact_rec.get("unique_reg_key"),
+                "signer_address": exact_rec.get("signer_address"),
+                "file_url": exact_rec.get("file_url"),
+                "ipfs_cid": exact_rec.get("ipfs_cid"),
+                "sha256_hash": exact_rec.get("sha256_hash"),
+                "algo_tx": exact_rec.get("algo_tx"),
+            },
+            "best_match": None,
+            "similarity_threshold": similarity_threshold,
+            "matches": None if not include_matches else [],
+            "lineage_graph": graph_payload,
+        }
+
+    # Derivative detection via embeddings
+    try:
+        from ..light_detectors import get_embedding_from_bytes  # type: ignore
+        emb_vec = get_embedding_from_bytes(processed_bytes)
+        query_emb = [float(x) for x in emb_vec][:512]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Embedding computation failed: {e}")
+
+    best_sim = -1.0
+    best_item = None
+    match_list = []
+    match_candidates: list[tuple[dict, float]] = []
+    for item in media:
+        try:
+            emb2 = item.get("embedding")
+            if not isinstance(emb2, list):
+                continue
+            sim = _cosine(query_emb, emb2)
+            match_candidates.append((item, sim))
+            if sim >= similarity_threshold:
+                match_list.append({
+                    "unique_reg_key": item.get("unique_reg_key"),
+                    "signer_address": item.get("signer_address"),
+                    "file_url": item.get("file_url"),
+                    "ipfs_cid": item.get("ipfs_cid"),
+                    "similarity": round(sim, 5),
+                })
+            if sim > best_sim:
+                best_sim = sim
+                best_item = item
+        except Exception:
+            continue
+
+    match_list.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+    best_match_payload = None
+    status = "unregistered"
+    if best_item and best_sim >= similarity_threshold:
+        status = "derivative"
+        best_match_payload = {
+            "unique_reg_key": best_item.get("unique_reg_key"),
+            "signer_address": best_item.get("signer_address"),
+            "file_url": best_item.get("file_url"),
+            "ipfs_cid": best_item.get("ipfs_cid"),
+            "similarity": round(best_sim, 5),
+        }
+
+    graph_payload = None
+    if include_graph:
+        graph_payload = _build_provenance_graph(
+            query_sha256=query_sha256,
+            canonical_strategy=canonical_strategy,
+            query_ipfs_cid=ipfs_cid,
+            query_source_url=source_url,
+            best_item=best_item,
+            best_similarity=best_sim,
+            match_candidates=match_candidates,
+            match_summaries=match_list,
+            media=media,
+            similarity_threshold=similarity_threshold,
+            graph_top_k=graph_top_k,
+        )
+
+    return {
+        "status": status,
+        "query_sha256": query_sha256,
+        "canonical_strategy": canonical_strategy,
+        "exact_match": None,
+        "best_match": best_match_payload,
+        "similarity_threshold": similarity_threshold,
+        "matches": match_list[:top_k] if include_matches else None,
+        "lineage_graph": graph_payload,
+    }
+
+
+@router.post("/remove_watermark")
+def remove_watermark(file: UploadFile = File(None), ipfs_cid: str | None = None, repin: bool = False):
+    """Remove (heuristically) a watermark band from bottom of the image.
+
+    Provide either an uploaded file or an ipfs_cid. If repin=true and Pinata keys are
+    configured, the cropped image is pinned to IPFS and its CID returned.
+
+    Returns: { cleaned: { file_url?, ipfs_cid? }, info, original: { file_url?, ipfs_cid? } }
+    """
+    if not file and not ipfs_cid:
+        raise HTTPException(status_code=400, detail="Provide either file upload or ipfs_cid")
+
+    # Acquire bytes
+    original_bytes = None
+    original_url = None
+    original_cid = ipfs_cid
+    if file:
+        try:
+            original_bytes = file.file.read()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read upload: {e}")
+    else:
+        # Build gateway URL similar to upload
+        gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
+        if gateway_domain:
+            if str(gateway_domain).startswith("http://") or str(gateway_domain).startswith("https://"):
+                base = str(gateway_domain).rstrip('/')
+            else:
+                base = f"https://{str(gateway_domain).rstrip('/')}"
+            original_url = f"{base}/ipfs/{ipfs_cid}"
+        else:
+            original_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
+        try:
+            r = requests.get(original_url, timeout=30)
+            if r.status_code >= 400:
+                raise HTTPException(status_code=502, detail=f"Fetch CID failed: {r.status_code}")
+            original_bytes = r.content
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Fetch error: {e}")
+
+    if not original_bytes:
+        raise HTTPException(status_code=500, detail="No bytes loaded for processing")
+
+    cleaned_bytes, info = _crop_watermark_with_info(original_bytes)
+
+    cleaned_cid = None
+    cleaned_url = None
+    if repin:
+        if not settings.PINATA_API_KEY or not settings.PINATA_API_SECRET:
+            raise HTTPException(status_code=500, detail="Pinata API keys not configured for repin")
+        try:
+            pinata_url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+            import io
+            # Choose filename
+            fname = (file.filename if file and file.filename else (ipfs_cid or "image"))
+            files = {"file": (f"cleaned_{fname}.png", cleaned_bytes, "image/png")}
+            headers = {
+                "pinata_api_key": settings.PINATA_API_KEY,
+                "pinata_secret_api_key": settings.PINATA_API_SECRET,
+            }
+            resp = requests.post(pinata_url, files=files, headers=headers, timeout=120)
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=502, detail=f"Pinata repin error: {resp.status_code} {resp.text}")
+            data_json = resp.json()
+            cleaned_cid = data_json.get("IpfsHash")
+            if not cleaned_cid:
+                raise HTTPException(status_code=502, detail=f"Pinata response missing IpfsHash: {data_json}")
+            gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
+            if gateway_domain:
+                if str(gateway_domain).startswith("http://") or str(gateway_domain).startswith("https://"):
+                    base = str(gateway_domain).rstrip('/')
+                else:
+                    base = f"https://{str(gateway_domain).rstrip('/')}"
+                cleaned_url = f"{base}/ipfs/{cleaned_cid}"
+            else:
+                cleaned_url = f"https://gateway.pinata.cloud/ipfs/{cleaned_cid}"
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Repin failed: {e}")
+
+    return {
+        "original": {"ipfs_cid": original_cid, "file_url": original_url},
+        "cleaned": {"ipfs_cid": cleaned_cid, "file_url": cleaned_url},
+        "info": info,
+        "repinned": bool(repin and cleaned_cid)
+    }
 
 
 @router.post("/register_debug")
@@ -483,8 +1270,9 @@ def list_registrants(sha256_hash: str | None = None, cid: str | None = None):
             else:
                 # Neither filter provided
                 continue
+            signer_addr = item.get("signer_address")
             registrants.append({
-                "signer_address": item.get("signer_address"),
+                "signer_address": signer_addr,
                 "email": item.get("email"),
                 "phone": item.get("phone"),
                 "unique_reg_key": item.get("unique_reg_key"),
@@ -853,7 +1641,11 @@ def server_pay():
             raise HTTPException(status_code=500, detail=f"Server payment failed: {e}")
 
         explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
-        return {"txid": txid, "explorer_url": explorer_url}
+        return {
+            "txid": txid,
+            "explorer_url": explorer_url,
+            "receiver_address_masked": _mask_address(recv_addr)
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -910,6 +1702,7 @@ def get_deployer_address():
         mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
         if mn:
             try:
+               
                 from algosdk import mnemonic as _mnemonic, account as _account
                 priv = _mnemonic.to_private_key(mn.replace('"', '').strip())
                 addr = _account.address_from_private_key(priv)
@@ -918,7 +1711,10 @@ def get_deployer_address():
         # Fallback to an explicit DEPLOYER_ADDRESS if mnemonic not present or derivation failed
         if not addr:
             addr = getattr(settings, 'DEPLOYER_ADDRESS', None)
-        return {"deployer_address": addr}
+        return {
+            "deployer_address": addr,
+            "deployer_address_masked": _mask_address(addr)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get deployer address: {e}")
 
@@ -1042,459 +1838,20 @@ def media_trust(sha256_hash: str | None = None, cid: str | None = None, check_on
         except Exception:
             continue
 
-    if not matches:
-        return {"registrants": [], "average": None, "count": 0}
+    # Compute trust score
+    trust_score = 0
+    if matches:
+        trust_score = sum(item.get("trust_factor", 0) for item in matches) / len(matches)
 
-    # Aggregate info for heuristics: number of distinct signers
-    distinct_signers = len({(m.get('signer_address') or '').lower() for m in matches if m.get('signer_address')})
-    media_group = {"distinct_signers": distinct_signers, "total": len(matches)}
+    # Ensure all fields are properly referenced
+    result = []
+    for match in matches:
+        result.append({
+            "signer_address": match.get("signer_address"),
+            "file_url": match.get("file_url"),
+            "ipfs_cid": match.get("ipfs_cid"),
+            "sha256_hash": match.get("sha256_hash"),
+            "algo_tx": match.get("algo_tx"),
+        })
 
-    results = []
-    scores = []
-
-    # Weights (total positive weights = 80, ML penalty = 20)
-    W_SIGNATURE = 20
-    W_ONCHAIN = 25
-    W_IPFS = 15
-    W_KYC = 15
-    W_STATUS = 5
-    W_ML = 20  # penalty weight
-
-    # Helper to test IPFS availability (lightweight)
-    gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
-    def check_cid_available(cid_val: str) -> bool:
-        try:
-            if not cid_val:
-                return False
-            if gateway_domain:
-                if str(gateway_domain).startswith('http://') or str(gateway_domain).startswith('https://'):
-                    base = str(gateway_domain).rstrip('/')
-                else:
-                    base = f"https://{str(gateway_domain).rstrip('/')}"
-                url = f"{base}/ipfs/{cid_val}"
-            else:
-                url = f"https://gateway.pinata.cloud/ipfs/{cid_val}"
-            try:
-                r = requests.head(url, timeout=8)
-                status = r.status_code
-            except Exception:
-                try:
-                    r = requests.get(url, headers={"Range": "bytes=0-0"}, timeout=12)
-                    status = r.status_code
-                except Exception:
-                    return False
-            return 200 <= status < 300 or status == 206
-        except Exception:
-            return False
-
-    # Optional algod client for on-chain checks
-    algod_client = None
-    if check_onchain:
-        try:
-            from ..algorand_app_utils import get_algod_client
-            algod_client = get_algod_client()
-        except Exception:
-            algod_client = None
-
-    for item in matches:
-        try:
-            sig_ok = (item.get('signature_status') == 'verified')
-            onchain_present = False
-            if item.get('algo_tx'):
-                # If check_onchain requested, try to confirm tx is known
-                if check_onchain and algod_client:
-                    try:
-                        info = algod_client.pending_transaction_info(item.get('algo_tx'))
-                        confirmed = info.get('confirmed-round') or info.get('confirmed_round')
-                        onchain_present = bool(confirmed)
-                    except Exception:
-                        onchain_present = False
-                else:
-                    # trust presence of algo_tx as a soft indicator
-                    onchain_present = True
-
-            ipfs_ok = check_cid_available(item.get('ipfs_cid'))
-            kyc_ok = bool(item.get('email') or item.get('phone'))
-            not_revoked = (item.get('status') != 'revoked')
-
-            ml_info = None
-            ml_score = None
-            if include_ml:
-                try:
-                    ml_info = analyze_media_record(item, gateway_base=gateway_domain, media_group=media_group)
-                    ml_score = ml_info.get('ml_score')
-                except Exception:
-                    ml_score = None
-
-            # Compute base positive score
-            base = 0
-            base += W_SIGNATURE if sig_ok else 0
-            base += W_ONCHAIN if onchain_present else 0
-            base += W_IPFS if ipfs_ok else 0
-            base += W_KYC if kyc_ok else 0
-            base += W_STATUS if not_revoked else 0
-
-            ml_penalty = (ml_score or 0.0) * W_ML
-            pct = max(0.0, min(100.0, base - ml_penalty))
-            score_5 = round(pct / 20.0, 2)
-
-            results.append({
-                'signer_address': item.get('signer_address'),
-                'unique_reg_key': item.get('unique_reg_key'),
-                'content_key': item.get('content_key'),
-                'signals': {
-                    'signature_verified': sig_ok,
-                    'onchain_present': onchain_present,
-                    'ipfs_available': ipfs_ok,
-                    'kyc_present': kyc_ok,
-                    'not_revoked': not_revoked,
-                },
-                'ml': ml_info or {'method': 'none', 'ml_score': None},
-                'trust': {
-                    'pct': pct,
-                    'score_5': score_5,
-                    'breakdown': {
-                        'signature': W_SIGNATURE if sig_ok else 0,
-                        'onchain': W_ONCHAIN if onchain_present else 0,
-                        'ipfs': W_IPFS if ipfs_ok else 0,
-                        'kyc': W_KYC if kyc_ok else 0,
-                        'status': W_STATUS if not_revoked else 0,
-                        'ml_penalty': ml_penalty,
-                    }
-                }
-            })
-            scores.append(pct)
-        except Exception:
-            continue
-
-    avg = None
-    if scores:
-        avg = sum(scores) / len(scores)
-
-    return {"registrants": results, "average_pct": avg, "count": len(results), "content_key": target_key}
-
-
-
-@router.post("/compare")
-def compare_media(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None):
-    """Compare an uploaded suspect image against a registered asset.
-
-    Provide either:
-      - multipart file field `suspect` and `ipfs_cid` (server will fetch registered file by CID), or
-      - `suspect` and `registered_sha256` (server will look up registered_media.json for file_url).
-
-    Returns the lightweight tamper/near-duplicate score and signals.
-    """
-    # Read suspect bytes
-    if not suspect:
-        raise HTTPException(status_code=400, detail="Missing suspect file upload")
-    try:
-        suspect_bytes = suspect.file.read()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read suspect file: {e}")
-
-    # Determine registered file bytes by CID or sha256 search
-    from pathlib import Path
-    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
-    MEDIA_FILE = DATA_PATH / "registered_media.json"
-    reg_bytes = None
-    reg_path_hint = None
-    rec = None
-
-    if ipfs_cid:
-        # find first matching record with this cid, else fetch directly from gateway
-        reg_url = None
-        if MEDIA_FILE.exists():
-            try:
-                media = json.loads(MEDIA_FILE.read_text())
-                rec = next((m for m in media if m.get('ipfs_cid') == ipfs_cid), None)
-                if rec and rec.get('file_url'):
-                    reg_url = rec.get('file_url')
-            except Exception:
-                reg_url = None
-        if not reg_url:
-            gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
-            if gateway_domain:
-                if str(gateway_domain).startswith('http://') or str(gateway_domain).startswith('https://'):
-                    base = str(gateway_domain).rstrip('/')
-                else:
-                    base = f"https://{str(gateway_domain).rstrip('/')}"
-                reg_url = f"{base}/ipfs/{ipfs_cid}"
-            else:
-                reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-        try:
-            r = requests.get(reg_url, timeout=30)
-            if r.status_code >= 400:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {r.status_code}")
-            reg_bytes = r.content
-            reg_path_hint = reg_url
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-    elif registered_sha256:
-        if not MEDIA_FILE.exists():
-            raise HTTPException(status_code=404, detail="registered_media.json not found")
-        try:
-            media = json.loads(MEDIA_FILE.read_text())
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to read media database: {e}")
-        # normalize sha
-        key = registered_sha256[2:] if registered_sha256.startswith('0x') else registered_sha256
-        rec = next((m for m in media if (m.get('sha256_hash') or '').replace('0x','').lower() == key.lower()), None)
-        if not rec or not rec.get('file_url'):
-            raise HTTPException(status_code=404, detail="Registered asset not found or missing file_url")
-        reg_url = rec.get('file_url')
-        try:
-            r = requests.get(reg_url, timeout=30)
-            if r.status_code >= 400:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {r.status_code}")
-            reg_bytes = r.content
-            reg_path_hint = reg_url
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-    else:
-        raise HTTPException(status_code=400, detail="Provide either ipfs_cid or registered_sha256")
-
-    # Compute using light_detectors (fast, dependency-free comparison)
-    try:
-        from ..light_detectors import compute_tamper_score_from_bytes
-        result = compute_tamper_score_from_bytes(reg_bytes, suspect_bytes)
-        result['registered_source'] = reg_path_hint
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comparison failed: {e}")
-
-
-@router.get("/siamese_status")
-def siamese_status():
-    """Return availability info for Siamese inference backends (ONNX runtime, TensorFlow) and whether weights/models are present.
-
-    This server build has Siamese support disabled locally; the endpoint reports
-    availability flags to guide the client.
-    """
-    try:
-        import os as _os
-        onnx_path = _os.path.join(_os.path.dirname(__file__), '..', 'models', 'siamese.onnx')
-        weights_path = _os.path.join(_os.path.dirname(__file__), '..', 'models', 'siamese_weights.h5')
-        onnx_model_present = _os.path.exists(onnx_path)
-        weights_present = _os.path.exists(weights_path)
-        # Try importing runtimes
-        onnx_runtime_available = False
-        tf_available = False
-        try:
-            import onnxruntime as _ort  # type: ignore
-            onnx_runtime_available = True
-        except Exception:
-            onnx_runtime_available = False
-        try:
-            import tensorflow as _tf  # type: ignore
-            tf_available = True
-        except Exception:
-            tf_available = False
-
-        return {
-            'onnx_model_present': bool(onnx_model_present),
-            'onnx_runtime_available': bool(onnx_runtime_available),
-            'tf_available': bool(tf_available),
-            'weights_present': bool(weights_present),
-            'weights_path': weights_path if weights_present else None
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"siamese_status error: {e}")
-
-
-@router.post("/precompute_embeddings")
-def precompute_embeddings(skip_existing: bool = True):
-    """Compute and persist MobileNet embeddings for all registered media.
-
-    - skip_existing: if true, skip records that already have an 'embedding' field.
-    The server will write embeddings as lists of floats into registered_media.json
-    under the key 'embedding'. This is intended for small catalogs and dev use.
-    """
-    from pathlib import Path
-    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
-    MEDIA_FILE = DATA_PATH / "registered_media.json"
-    if not MEDIA_FILE.exists():
-        raise HTTPException(status_code=404, detail="No registered_media.json found to update")
-
-    try:
-        media = json.loads(MEDIA_FILE.read_text())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read media file: {e}")
-
-    from ..light_detectors import get_embedding_from_bytes
-
-    updated = 0
-    skipped = 0
-    failed = []
-
-    for item in media:
-        try:
-            if skip_existing and item.get('embedding'):
-                skipped += 1
-                continue
-
-            # determine file url - prefer stored file_url, else use gateway + cid
-            url = item.get('file_url')
-            if not url and item.get('ipfs_cid'):
-                cid = item.get('ipfs_cid')
-                gateway_domain = getattr(settings, 'PINATA_GATEWAY_DOMAIN', None)
-                if gateway_domain:
-                    if str(gateway_domain).startswith('http://') or str(gateway_domain).startswith('https://'):
-                        base = str(gateway_domain).rstrip('/')
-                    else:
-                        base = f"https://{str(gateway_domain).rstrip('/')}"
-                    url = f"{base}/ipfs/{cid}"
-                else:
-                    url = f"https://gateway.pinata.cloud/ipfs/{cid}"
-
-            if not url:
-                failed.append({'signer': item.get('signer_address'), 'reason': 'no file_url or ipfs_cid'})
-                continue
-
-            try:
-                r = requests.get(url, timeout=30)
-                if r.status_code >= 400:
-                    failed.append({'signer': item.get('signer_address'), 'reason': f'http {r.status_code}'})
-                    continue
-                b = r.content
-            except Exception as e:
-                failed.append({'signer': item.get('signer_address'), 'reason': f'fetch error: {e}'})
-                continue
-
-            try:
-                emb = get_embedding_from_bytes(b)
-                # store as list of floats
-                item['embedding'] = [float(x) for x in emb.tolist()]
-                updated += 1
-            except Exception as e:
-                failed.append({'signer': item.get('signer_address'), 'reason': f'embedding error: {e}'})
-                continue
-        except Exception:
-            continue
-
-    try:
-        MEDIA_FILE.write_text(json.dumps(media, indent=2))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to persist embeddings: {e}")
-
-    return {"updated": updated, "skipped": skipped, "failed_count": len(failed), "failed": failed}
-
-
-@router.post("/siamese_check")
-def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None, registered_sha256: str | None = None, weights_path: str | None = None, threshold: float = 0.5):
-    """Compare a suspect image against a registered asset using the Siamese model.
-
-    Params:
-      - suspect: multipart upload of the suspect image (required)
-      - ipfs_cid OR registered_sha256: identifies the registered asset to compare against
-      - weights_path: optional path to siamese weights file; if omitted the server will look for
-        `backend/app/models/siamese_weights.h5` by default.
-      - threshold: similarity threshold (0..1) above which the images are considered similar/authentic.
-
-    Returns JSON: { available: bool, method: 'siamese'|'none', similarity: float, decision: 'authentic'|'altered', details }
-    """
-    try:
-        if not suspect:
-            raise HTTPException(status_code=400, detail="Missing suspect file upload")
-        try:
-            suspect_bytes = suspect.file.read()
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to read suspect file: {e}")
-
-        # Determine registered file bytes (same logic as /compare)
-        reg_bytes = None
-        reg_path_hint = None
-        from pathlib import Path
-        DATA_PATH = Path(__file__).resolve().parents[1] / "data"
-        MEDIA_FILE = DATA_PATH / "registered_media.json"
-        if ipfs_cid:
-            # try to find record and its file_url
-            if MEDIA_FILE.exists():
-                try:
-                    media = json.loads(MEDIA_FILE.read_text())
-                    rec = next((m for m in media if m.get('ipfs_cid') == ipfs_cid), None)
-                    if rec and rec.get('file_url'):
-                        reg_url = rec.get('file_url')
-                    else:
-                        reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-                except Exception:
-                    reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-            else:
-                reg_url = f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}"
-            try:
-                r = requests.get(reg_url, timeout=30)
-                if r.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {r.status_code}")
-                reg_bytes = r.content
-                reg_path_hint = reg_url
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-        elif registered_sha256:
-            if not MEDIA_FILE.exists():
-                raise HTTPException(status_code=404, detail="registered_media.json not found")
-            try:
-                media = json.loads(MEDIA_FILE.read_text())
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to read media database: {e}")
-            key = registered_sha256[2:] if registered_sha256.startswith('0x') else registered_sha256
-            rec = next((m for m in media if (m.get('sha256_hash') or '').replace('0x','').lower() == key.lower()), None)
-            if not rec or not rec.get('file_url'):
-                raise HTTPException(status_code=404, detail="Registered asset not found or missing file_url")
-            reg_url = rec.get('file_url')
-            try:
-                r = requests.get(reg_url, timeout=30)
-                if r.status_code >= 400:
-                    raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {r.status_code}")
-                reg_bytes = r.content
-                reg_path_hint = reg_url
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch registered file: {e}")
-        else:
-            raise HTTPException(status_code=400, detail="Provide either ipfs_cid or registered_sha256")
-
-        # Try to import siamese helper and load weights lazily
-        try:
-            from .. import siamese_model  # type: ignore
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Siamese model module not available: {e}")
-
-        # Determine weights path
-        if not weights_path:
-            default_weights = Path(__file__).resolve().parents[1] / 'models' / 'siamese_weights.h5'
-            weights_path = str(default_weights)
-
-        # Build model structure and load weights
-        try:
-            model, _ = siamese_model.build_siamese_network()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to construct siamese model: {e}")
-
-        try:
-            siamese_model.load_weights(model, weights_path)
-        except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Failed to load siamese weights from {weights_path}: {e}")
-
-        # Run prediction
-        try:
-            sim = siamese_model.predict_similarity_from_bytes(model, reg_bytes, suspect_bytes)
-            sim = float(max(0.0, min(1.0, sim)))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Siamese prediction failed: {e}")
-
-        decision = 'authentic' if sim >= float(threshold) else 'altered'
-        return {"available": True, "method": "siamese", "similarity": sim, "threshold": float(threshold), "decision": decision, "registered_source": reg_path_hint}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Siamese check error: {e}")
+    return {"trust_score": round(trust_score, 2), "matches": result}

@@ -4,8 +4,8 @@ from pathlib import Path
 # Support both pydantic v2 (BaseSettings moved to pydantic-settings)
 # and pydantic v1 where BaseSettings lived in pydantic.
 try:
-    from pydantic_settings import BaseSettings
-except Exception:
+    from pydantic_settings import BaseSettings  # type: ignore
+except ImportError:
     from pydantic import BaseSettings
 
 # pydantic v2 exposes ConfigDict for model configuration; use it when available
