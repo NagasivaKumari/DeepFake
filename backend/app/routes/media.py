@@ -3,7 +3,7 @@ import sys
 from ..config import settings
 print("[STARTUP] settings.PINATA_API_KEY:", getattr(settings, 'PINATA_API_KEY', None), file=sys.stderr)
 print("[STARTUP] settings.PINATA_API_SECRET:", getattr(settings, 'PINATA_API_SECRET', None), file=sys.stderr)
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from fastapi import Depends
 import requests
 from ..schemas import (
@@ -13,52 +13,22 @@ from ..schemas import (
 from typing import Dict
 import hashlib
 import time
-import json
 import secrets
-# Note: lightweight ML/embedding/detector functionality has been disabled in this local
-# revert. Heavy dependencies (ONNX/Torch/OpenCV) and atomic registration helpers were
-# introduced on 2025-11-06 and are temporarily removed to restore a minimal working
-# backend for development. If you need these features re-enabled later, reintroduce the
-# detector and embedding modules and the atomic registration flow.
-
-def analyze_media_record(record, gateway_base=None, media_group=None):
-    return {"available": False, "method": "none", "ml_score": None}
-
-def compute_tamper_score_from_bytes(reg_bytes: bytes, sus_bytes: bytes) -> dict:
-    # Minimal, dependency-free comparison: compare SHA-256 equality and return a simple
-    # similarity score (1.0 identical, 0.0 otherwise).
-    import hashlib
-    r_sha = hashlib.sha256(reg_bytes).hexdigest() if reg_bytes else None
-    s_sha = hashlib.sha256(sus_bytes).hexdigest() if sus_bytes else None
-    sim = 1.0 if (r_sha and s_sha and r_sha == s_sha) else 0.0
-    return {"fast_path": True, "similarity": sim, "threshold": 1.0, "decision": ("authentic" if sim==1.0 else "altered")}
-
-def get_embedding_from_bytes(b: bytes):
-    # Embedding functionality disabled; return a small zero vector to keep callers working.
-    try:
-        import numpy as _np
-        return _np.zeros(16, dtype=_np.float32)
-    except Exception:
-        return [0.0] * 16
-
-def cosine_sim(a, b):
-    try:
-        import math
-        # If inputs are lists/arrays, do a simple dot/norm
-        la = list(a) if not hasattr(a, 'tolist') else a.tolist()
-        lb = list(b) if not hasattr(b, 'tolist') else b.tolist()
-        if len(la) != len(lb) or len(la) == 0:
-            return 0.0
-        num = sum(x*y for x,y in zip(la, lb))
-        import math
-        noma = math.sqrt(sum(x*x for x in la))
-        nomb = math.sqrt(sum(x*x for x in lb))
-        if noma == 0 or nomb == 0:
-            return 0.0
-        return max(0.0, min(1.0, num / (noma * nomb)))
-    except Exception:
-        return 0.0
 import tempfile
+import json
+
+# Optional ML analyzer import (provide graceful fallback if missing)
+try:
+    # Attempt to import analyze_media_record from light_detectors if present
+    from ..light_detectors import analyze_media_record  # type: ignore
+except Exception:
+    # Fallback stub so /trust endpoint does not raise NameError when ML module absent
+    def analyze_media_record(*args, **kwargs):  # type: ignore
+        return {
+            'ml_score': 0.0,
+            'method': 'none',
+            'details': 'analyze_media_record unavailable'
+        }
 
 # Diagnostic startup print to confirm env vars are loaded when module is imported
 def _mask_secret(s: str | None) -> str:
@@ -169,8 +139,8 @@ def upload_file(file: UploadFile = File(...)):
             return "<missing>"
         s = str(s)
         return s if len(s) <= 8 else f"{s[:4]}...{s[-4:]}"
-    print("[UPLOAD] PINATA_API_KEY:", _mask(getattr(settings, 'PINATA_API_KEY', None)), file=sys.stderr)
-    print("[UPLOAD] PINATA_API_SECRET:", _mask(getattr(settings, 'PINATA_API_SECRET', None)), file=sys.stderr)
+        print("[UPLOAD] PINATA_API_KEY:", _mask(getattr(settings, 'PINATA_API_KEY', None)), file=sys.stderr)
+        print("[UPLOAD] PINATA_API_SECRET:", _mask(getattr(settings, 'PINATA_API_SECRET', None)), file=sys.stderr)
     """Upload a file to the storage provider (Pinata/IPFS) using the configured API.
 
     This endpoint pins the file to Pinata and returns the IPFS CID and gateway URL.
@@ -609,84 +579,90 @@ def tx_status(txid: str):
 
 @router.get("/algod_params")
 def algod_params():
-    """Return suggested params from the configured algod node for browser-side txn construction.
+    """Fetch suggested params from Algod and format for JS algosdk.
 
-    The frontend uses this to build a payment transaction without needing algod credentials in-browser.
+    Handles potential string/bytes issues with genesisHash and returns
+    camelCase keys that the JavaScript SDK expects.
     """
     try:
+        import base64
         from ..algorand_app_utils import get_algod_client
+
         algod_client = get_algod_client()
         params = algod_client.suggested_params()
-        # Extract common fields into JSON-serializable dict
+
+        genesis_hash_data = params.gh
+        if isinstance(genesis_hash_data, str):
+            genesis_hash_data = genesis_hash_data.encode("utf-8")
+
+        genesis_hash_b64 = base64.b64encode(genesis_hash_data).decode("utf-8")
+
         p = {
-            "fee": getattr(params, "fee", None),
-            "flat_fee": getattr(params, "flat_fee", None),
-            "first": getattr(params, "first", None),
-            "last": getattr(params, "last", None),
-            "gen": getattr(params, "gen", None) or getattr(params, "genesis_id", None),
-            "gh": getattr(params, "gh", None) or getattr(params, "genesis_hash", None),
+            "fee": params.min_fee,
+            "flatFee": True,
+            "firstRound": params.first,
+            "lastRound": params.last,
+            "genesisID": params.gen,
+            "genesisHash": genesis_hash_b64,
         }
+
         return p
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch algod params: {e}")
+        print(f"Error fetching algod params: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch Algod suggested params.")
 
 
 @router.post("/broadcast_signed_tx")
-def broadcast_signed_tx(body: BroadcastRequest):
-    """Broadcast a signed Algorand transaction to the configured algod node.
+async def broadcast_signed_tx(request: Request):
+    """Accept base64 signed txn and forward raw bytes to Algod.
 
-    Expect body: { "signed_tx_b64": "..." }
-    Returns: { "txid": "...", "explorer_url": "..." }
+    Forward-only; no mutation or rebuild. Falls back to direct HTTP with
+    explicit application/x-binary if SDK call is rejected with padding error.
     """
-    try:
-        signed_b64 = body.signed_tx_b64
-        if not signed_b64:
-            raise HTTPException(status_code=400, detail="signed_tx_b64 is required")
-        import base64, re
-        def _decode_b64(s: str) -> bytes:
-            sb = (s or "").strip()
-            sb = re.sub(r"\s+", "", sb)
-            # handle possible data URLs (e.g., "data:...;base64,AAAA...")
-            if "," in sb and ";base64" in sb[:64]:
-                sb = sb.split(",", 1)[1]
-            # try standard alphabet first with padding attempts
-            core = sb.replace("-", "+").replace("_", "/")
-            for pad in range(0, 4):
-                try:
-                    return base64.b64decode(core + ("=" * pad), validate=False)
-                except Exception:
-                    continue
-            # then try urlsafe decoder with padding attempts
-            for pad in range(0, 4):
-                try:
-                    return base64.urlsafe_b64decode(sb + ("=" * pad))
-                except Exception:
-                    continue
-            raise HTTPException(status_code=400, detail="Invalid base64 for signed txn: could not decode after normalization")
+    import base64, binascii, hashlib
 
-        signed_bytes = _decode_b64(signed_b64)
-
-        from ..algorand_app_utils import get_algod_client
-        algod_client = get_algod_client()
-        # Submit raw signed transaction bytes directly; compatible with older SDKs
+    ct = request.headers.get("content-type", "").lower()
+    signed_bytes: bytes
+    if "application/json" in ct:
         try:
-            txid = algod_client.send_raw_transaction(signed_bytes)
+            body_json = await request.json()
         except Exception as e:
-            # Surface detailed algod errors
-            try:
-                from algosdk.error import AlgodHTTPError  # type: ignore
-            except Exception:
-                AlgodHTTPError = Exception  # type: ignore
-            if isinstance(e, AlgodHTTPError):
-                err_text = str(e)
-                raise HTTPException(status_code=502, detail=f"Algod error: {err_text}")
-            raise HTTPException(status_code=500, detail=f"Broadcast failed (send_raw_transaction): {e}")
-        explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
-        return {"txid": txid, "explorer_url": explorer_url}
-    except HTTPException:
-        raise
+            raise HTTPException(status_code=400, detail=f"Invalid JSON body: {e}")
+        signed_b64 = body_json.get("signed_tx_b64") or body_json.get("signedB64")
+        if not isinstance(signed_b64, str):
+            raise HTTPException(status_code=400, detail="signed_tx_b64 required as string")
+        sb = signed_b64.strip()
+        if "," in sb and ";base64" in sb[:64]:
+            sb = sb.split(",", 1)[1]
+        sb = sb.replace("-", "+").replace("_", "/").replace("\n", "")
+        pad = "=" * ((4 - len(sb) % 4) % 4)
+        try:
+            signed_bytes = base64.b64decode(sb + pad, validate=False)
+        except (binascii.Error, ValueError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 for signed txn: {e}")
+    else:
+        # Treat body as raw bytes
+        signed_bytes = await request.body()
+
+    sha = hashlib.sha256(signed_bytes).hexdigest()
+    print(f"[FORWARD] raw_len={len(signed_bytes)} head=0x{signed_bytes[:8].hex()} sha256={sha}")
+
+    from ..algorand_app_utils import get_algod_client, send_raw_transaction_bytes
+    try:
+        txid = get_algod_client().send_raw_transaction(signed_bytes)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Broadcast failed: {e}")
+        # If padding complaint or HTTP error occurs, try explicit HTTP binary fallback
+        print(f"[ALGOD ERROR] SDK send_raw_transaction failed: {e}")
+        try:
+            txid = send_raw_transaction_bytes(signed_bytes)
+            print("[ALGOD FALLBACK] HTTP binary submit succeeded", txid)
+        except Exception as e2:
+            print(f"[ALGOD FALLBACK ERROR] {e2}")
+            head_hex = signed_bytes[:8].hex() if len(signed_bytes) >= 8 else signed_bytes.hex()
+            raise HTTPException(status_code=502, detail=f"Algod error: {e2} bytes={len(signed_bytes)} head=0x{head_hex}")
+
+    return {"txid": txid, "explorer_url": f"https://lora.algokit.io/testnet/transaction/{txid}"}
 
 
 @router.post("/broadcast_signed_app_tx")
@@ -747,6 +723,33 @@ def broadcast_signed_app_tx(body: BroadcastAppRequest):
                 raise HTTPException(status_code=502, detail=f"Algod error: {err_text}")
             raise HTTPException(status_code=500, detail=f"Broadcast app-tx failed (send_raw_transaction): {e}")
         explorer_url = f"https://lora.algokit.io/testnet/transaction/{txid}"
+
+        # Diagnostics similar to payment broadcast (added after successful send to avoid altering already valid bytes).
+        first_byte = signed_bytes[0] if signed_bytes else None
+        if first_byte is not None:
+            fb_hex = f"0x{first_byte:02x}"
+            is_fixmap = 0x80 <= first_byte <= 0x8f
+            is_map_ext = first_byte in (0xde, 0xdf)
+            is_fixarray = 0x90 <= first_byte <= 0x9f
+            is_array_ext = first_byte in (0xdc, 0xdd)
+            classification = (
+                "fixmap" if is_fixmap else
+                "map_ext" if is_map_ext else
+                "fixarray" if is_fixarray else
+                "array_ext" if is_array_ext else
+                "json_or_text" if first_byte in (0x7b, 0x5b) else
+                "other"
+            )
+            print(f"[APP FIRST BYTE] {fb_hex} classification={classification} raw_len={len(signed_bytes)}")
+        # Fingerprint
+        fp_sha256 = hashlib.sha256(signed_bytes).hexdigest()
+        head_hex = signed_bytes[:16].hex()
+        tail_hex = signed_bytes[-16:].hex() if len(signed_bytes) >= 16 else signed_bytes.hex()
+        print(f"[APP FINGERPRINT] raw_len={len(signed_bytes)} head=0x{head_hex} tail=0x{tail_hex} sha256={fp_sha256}")
+
+        # If app tx came as JSON wrapper (rare), attempt repair BEFORE send would be ideal; for safety we only log if classification suggests JSON.
+        if first_byte in (0x7b, 0x5b):
+            print("[APP JSON NOTICE] App transaction appears to be JSON-wrapped; ensure frontend sends raw signed msgpack bytes.")
 
         # Optionally attach txid to stored registration by unique_reg_key or content_key
         unique_reg_key = body.unique_reg_key
@@ -1461,7 +1464,7 @@ def siamese_check(suspect: UploadFile = File(None), ipfs_cid: str | None = None,
 
         # Try to import siamese helper and load weights lazily
         try:
-            from .. import siamese_model
+            from .. import siamese_model  # type: ignore
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Siamese model module not available: {e}")
 

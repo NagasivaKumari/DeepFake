@@ -49,8 +49,55 @@ def get_algod_client() -> algod.AlgodClient:
     if not address:
         raise RuntimeError("Algod address not configured: set ALGOD_ADDRESS or ALGOD_URL in .env")
     token = settings.ALGOD_TOKEN or ""
-    headers = _parse_headers(settings.ALGOD_HEADER_KV)
+    raw_headers = _parse_headers(settings.ALGOD_HEADER_KV)
+    # Sanitize headers: never override Content-Type so SDK can send application/x-binary for raw txns
+    headers = {k: v for k, v in raw_headers.items() if k.lower() not in ("content-type", "content_type")}
+    try:
+        if raw_headers and raw_headers != headers:
+            removed = [k for k in raw_headers.keys() if k.lower() in ("content-type", "content_type")]
+            print(f"[ALGOD CLIENT] Removed custom Content-Type from ALGOD_HEADER_KV: {removed}")
+        print(f"[ALGOD CLIENT] Using headers keys: {list(headers.keys())}")
+    except Exception:
+        pass
     return algod.AlgodClient(token, address, headers)
+
+
+def send_raw_transaction_bytes(signed_bytes: bytes) -> str:
+    """Post raw signed txn bytes directly via HTTP to avoid any SDK header overrides.
+
+    Returns txid on success, raises Exception on failure with response text.
+    """
+    import requests
+    address = settings.ALGOD_ADDRESS or settings.ALGOD_URL
+    if not address:
+        raise RuntimeError("Algod address not configured: set ALGOD_ADDRESS or ALGOD_URL in .env")
+    token = settings.ALGOD_TOKEN or ""
+    raw_headers = _parse_headers(settings.ALGOD_HEADER_KV)
+    # Always set x-binary content type; never allow user-provided Content-Type here
+    headers = {k: v for k, v in raw_headers.items() if k.lower() not in ("content-type", "content_type")}
+    headers["Content-Type"] = "application/x-binary"
+    if token:
+        # Standard header for direct algod token auth
+        headers.setdefault("X-Algo-API-Token", token)
+    url = address.rstrip("/") + "/v2/transactions"
+    resp = requests.post(url, headers=headers, data=signed_bytes, timeout=30)
+    if resp.status_code >= 400:
+        raise Exception(f"HTTP {resp.status_code}: {resp.text}")
+    try:
+        j = resp.json()
+        txid = j.get("txId") or j.get("txid") or j.get("txID")
+        if not txid:
+            # Some nodes return plain text txid
+            txid = resp.text.strip().strip('"')
+        if not txid:
+            raise Exception(f"Unexpected algod response: {resp.text}")
+        return txid
+    except ValueError:
+        # Not JSON, treat as plain id
+        txid = resp.text.strip().strip('"')
+        if not txid:
+            raise Exception(f"Unexpected algod response: {resp.text}")
+        return txid
 
 
 def compute_media_key(h_preimage: bytes) -> bytes:

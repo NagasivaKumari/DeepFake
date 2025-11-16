@@ -8,9 +8,9 @@ export default defineConfig({
     port: 5174,
     open: true,
     proxy: {
-  // Proxy API requests to FastAPI backend (make sure backend is running on port 8011)
+  // Proxy API requests to FastAPI backend (backend runs on port 8000)
       '/api': {
-  target: 'http://localhost:8011',
+  target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
         // No custom proxy logging; use standard proxy settings only

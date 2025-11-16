@@ -4,8 +4,7 @@ import {
   WalletProvider,
   usePeraWallet,
 } from "../hooks/useWallet";
-import { algoTxnUtils } from "../lib/algoTxnUtils";
-import { makePaymentTxn } from "../lib/algoTxnUtils";
+// Using wallet context convenience sendPayment instead of manual build/sign
 import { Button } from "./ui/button";
 
 const ConnectedHeader = () => {
@@ -21,19 +20,26 @@ const ConnectedHeader = () => {
   const { peraWallet } = usePeraWallet();
 
   const handleConnect = async (provider) => {
-    await connect(provider);
-    if (activeAccount) {
-      try {
-        const recipient = "SL5PBMXBUSOP5IBJDL6ZKB5KSCXV5NGF6KRBZS37UPWRSXKV6GXJZAWQYM"; // Deployer address
-        const amount = 1000000; // 1 Algo
-        const note = "Registration Fee";
-        const txn = await makePaymentTxn(activeAccount.address, recipient, amount, note);
-        const signedTxn = await signTransactions([txn]);
-        const { txId } = await algoTxnUtils.sendSignedTransaction(signedTxn[0]);
-        console.log("Payment successful, txId:", txId);
-      } catch (error) {
-        console.error("Payment failed", error);
+    try {
+      await connect(provider);
+      // activeAccount may not be set immediately after connect (state update async)
+      const addr = activeAccount?.address;
+      if (!addr) return; // user sees connected state; can trigger payment explicitly later if desired
+      // Example automatic payment (can be removed if undesired)
+      const recipient = "SL5PBMXBUSOP5IBJDL6ZKB5KSCXV5NGF6KRBZS37UPWRSXKV6GXJZAWQYM"; // Deployer address
+      const amount = 1_000_000; // 1 Algo in microAlgos
+      if (!recipient || recipient.length < 10) {
+        console.warn("Recipient address appears invalid, skipping payment auto-send");
+        return;
       }
+      if (amount <= 0 || !Number.isInteger(amount)) {
+        console.warn("Amount invalid, skipping payment auto-send");
+        return;
+      }
+      const res = await sendPayment({ to: recipient, amount, note: "Registration Fee" });
+      if (res) console.log("Payment successful", res.txid);
+    } catch (e) {
+      console.error("Auto payment after connect failed", e);
     }
   };
 
@@ -101,9 +107,7 @@ const ConnectedHeader = () => {
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm bg-gray-100 p-2 rounded">{activeAccount.address}</span>
                 <Check className="w-4 h-4 text-green-600" />
-                <Button onClick={disconnect} variant="outline">
-                  Disconnect
-                </Button>
+                <Button onClick={disconnect} variant="outline">Disconnect</Button>
               </div>
             ) : (
               <DropdownMenu>

@@ -1,3 +1,11 @@
+const API_BASE = (() => {
+  try {
+    const host = window.location?.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return 'http://127.0.0.1:8000';
+  } catch {}
+  return '';
+})();
+
 export const storage: any = {
   integrations: {
     Core: {
@@ -6,7 +14,7 @@ export const storage: any = {
         try {
           const form = new FormData();
           form.append('file', file, file.name);
-          const resp = await fetch('/media/upload', { method: 'POST', body: form });
+          const resp = await fetch(`${API_BASE}/media/upload`, { method: 'POST', body: form });
           if (!resp.ok) {
             // Fallback to local object URL for dev
             return { file_url: URL.createObjectURL(file) };
@@ -25,7 +33,7 @@ export const storage: any = {
   async list(_sort?: string, _limit?: number) {
         try {
     // Request only registrations whose CIDs resolve at the configured gateway
-    const resp = await fetch('/api/registrations?availability=filter');
+    const resp = await fetch(`${API_BASE}/api/registrations?availability=filter`);
             if (!resp.ok) return [];
             const regs = await resp.json();
 
@@ -38,7 +46,7 @@ export const storage: any = {
               try {
                 const controller = new AbortController();
                 const id = setTimeout(() => controller.abort(), 3000);
-                const r = await fetch(`/api/kyc/status?address=${encodeURIComponent(address)}`, { signal: controller.signal });
+                const r = await fetch(`${API_BASE}/api/kyc/status?address=${encodeURIComponent(address)}`, { signal: controller.signal });
                 clearTimeout(id);
                 if (!r.ok) return null;
                 return await r.json();
@@ -87,7 +95,7 @@ export const storage: any = {
             options.headers = { 'Content-Type': 'application/json' };
           }
 
-          const resp = await fetch('/media/register', options);
+          const resp = await fetch(`${API_BASE}/media/register`, options);
           if (!resp.ok) {
             const errorText = await resp.text();
             console.error("Register API error:", errorText);
@@ -103,7 +111,7 @@ export const storage: any = {
           return { error: 'Invalid registration id' };
         }
         try {
-          const resp = await fetch(`/api/registrations/${id}`, {
+          const resp = await fetch(`${API_BASE}/api/registrations/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(patch),
