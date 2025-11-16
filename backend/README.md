@@ -48,6 +48,9 @@ Endpoints (summary)
 - POST /media/recompute_reg_key – Recompute and persist unique_reg_key (and optionally algo_tx) for existing records matching a given hash.
 - GET /media/trust – Compute a trust score for registrants of a media item based on on-chain presence, KYC, IPFS availability, etc.
 - POST /media/compare – Compare a suspect image against a registered asset (by CID or hash) and return a lightweight tamper/duplicate score.
+- GET /media/siamese_status – Report availability of Siamese model weights and runtimes.
+- POST /media/precompute_embeddings – Compute and store embeddings for all registered media to speed up similarity checks.
+- POST /media/siamese_check – Compare a suspect image against a registered asset using the Siamese model and return a similarity score and decision.
 
 Security notes
 - Store API keys and private credentials in a secure store or environment variables — never in client-side code.
