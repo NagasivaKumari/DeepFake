@@ -33,6 +33,11 @@ Endpoints (summary)
 - POST /media/register - accepts metadata and a signature, verifies signature, then calls the storage/registry API to create the registration
 - POST /media/verify - verifies a message signature and returns the recovered address.
 - POST /media/upload – Upload a media file, pin it to IPFS via Pinata, and return file_url and ipfs_cid.
+-POST /media/register – Register media metadata (hashes, CID, signer, txid) and persist it in the local registry; may also prepare an unsigned app-call txn.
+-POST /media/register_debug – Same as /media/register but returns full traceback details on error (for local debugging only).
+-GET /media/registrants – List registrants for a given sha256_hash or cid, including txid and explorer URL.
+-POST /media/derive_keys – Derive content_key and unique_reg_key from a given sha256_hash and optional nonce/txid.
+-POST /media/verify – Verify a signature via Lute and return the recovered address or verification status.
 Security notes
 
 - Store API keys and private credentials in a secure store or environment variables — never in client-side code.
