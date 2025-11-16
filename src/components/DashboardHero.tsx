@@ -64,7 +64,7 @@ export default function Dashboard() {
                 </Button>
               </Link>
               <Link to={createPageUrl("VerifyMedia")}>
-                <Button size="lg" className="bg-blue-600 text-white hover:bg-blue-700 shadow-xl hover:shadow-2xl transition-all duration-300 gap-2">
+                <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 gap-2">
                   <Search className="w-5 h-5" />
                   Verify Existing Content
                 </Button>
