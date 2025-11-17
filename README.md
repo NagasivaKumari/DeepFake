@@ -363,6 +363,8 @@ Adjusting Sensitivity:
 - Raise `similarity_threshold` above 0.95 to reduce false derivatives.
 - Lower to e.g. 0.88 to capture more distant edits.
 
+Depoly Link: https://deep-fake-six.vercel.app/
+
 Future Enhancements:
 - Perceptual hash fallback tier
 - Multi‑band watermark detection
