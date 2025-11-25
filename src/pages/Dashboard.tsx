@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -144,7 +143,7 @@ export default function Dashboard() {
           <StatsCard
             icon={TrendingUp}
             label="Trust Score"
-            value="4.8/5"
+            value={props.reputationScore || "N/A"}
             color="purple"
           />
           <StatsCard

@@ -1,5 +1,4 @@
-﻿
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -101,6 +100,7 @@ const VerifyMedia: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [compareResult, setCompareResult] = useState<CompareResult>(null);
   const [comparing, setComparing] = useState<boolean>(false);
+  const [summaryData, setSummaryData] = useState(null);
 
   const statusMeta = useMemo(() => buildStatusMeta(result?.status ?? null), [result]);
   const matches = useMemo(() => (result?.matches ? result.matches.filter(Boolean) : []), [result]);
@@ -221,6 +221,23 @@ const VerifyMedia: React.FC = () => {
     setError(null);
   };
 
+  const fetchSummaryData = async () => {
+    try {
+      const response = await fetch(`/media/visualization_summary?similarity_threshold=0.9`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch summary data");
+      }
+      const data = await response.json();
+      setSummaryData(data.summary);
+    } catch (err) {
+      setError(err.message || "Unable to fetch summary data");
+    }
+  };
+
+  useEffect(() => {
+    fetchSummaryData();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-12 px-4 overflow-hidden" style={{ paddingTop: "148.8px" }}>
       <div className="max-w-4xl mx-auto space-y-6">
@@ -252,60 +269,60 @@ const VerifyMedia: React.FC = () => {
                   <Upload className="w-4 h-4" />
                   <span>Upload File</span>
                 </Button>
+                <Button
+                  variant={method === "ipfs" ? "default" : "outline"}
+                  onClick={() => setMethod("ipfs")}
+                  className="flex flex-1 items-center justify-center gap-2"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  <span>IPFS CID</span>
+                </Button>
+              </div>
+              {method === "upload" ? (
+                <div className="space-y-4 pt-4">
+                  <Label htmlFor="file-upload" className="text-gray-700">
+                    Upload file to verify
+                  </Label>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
                   <Button
-                    variant={method === "ipfs" ? "default" : "outline"}
-                    onClick={() => setMethod("ipfs")}
-                    className="flex flex-1 items-center justify-center gap-2"
+                    className="w-full mt-2"
+                    disabled={!file || loading}
+                    onClick={classifyByFile}
                   >
-                    <LinkIcon className="w-4 h-4" />
-                    <span>IPFS CID</span>
+                    {loading ? "Verifying..." : "Verify"}
                   </Button>
                 </div>
-                {method === "upload" ? (
-                  <div className="space-y-4 pt-4">
-                    <Label htmlFor="file-upload" className="text-gray-700">
-                      Upload file to verify
-                    </Label>
-                    <Input
-                      id="file-upload"
-                      type="file"
-                      accept="image/*,video/*"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    />
-                    <Button
-                      className="w-full mt-2"
-                      disabled={!file || loading}
-                      onClick={classifyByFile}
-                    >
-                      {loading ? "Verifying..." : "Verify"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4 pt-4">
-                    <Label htmlFor="cid-input" className="text-gray-700">
-                      Enter IPFS CID to verify
-                    </Label>
-                    <Input
-                      id="cid-input"
-                      type="text"
-                      placeholder="Qm..."
-                      value={cid}
-                      onChange={(e) => setCid(e.target.value)}
-                    />
-                    <Button
-                      className="w-full mt-2"
-                      disabled={!cid.trim() || loading}
-                      onClick={classifyByCid}
-                    >
-                      {loading ? "Verifying..." : "Verify"}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
-              <Card className="shadow-2xl border-none overflow-hidden">
+              ) : (
+                <div className="space-y-4 pt-4">
+                  <Label htmlFor="cid-input" className="text-gray-700">
+                    Enter IPFS CID to verify
+                  </Label>
+                  <Input
+                    id="cid-input"
+                    type="text"
+                    placeholder="Qm..."
+                    value={cid}
+                    onChange={(e) => setCid(e.target.value)}
+                  />
+                  <Button
+                    className="w-full mt-2"
+                    disabled={!cid.trim() || loading}
+                    onClick={classifyByCid}
+                  >
+                    {loading ? "Verifying..." : "Verify"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.45 }}>
+            <Card className="shadow-2xl border-none overflow-hidden">
               <CardHeader className={`bg-gradient-to-r ${statusMeta.gradient} text-white`}>
                 <div className="flex items-center gap-4">
                   {statusMeta.icon}
@@ -428,15 +445,15 @@ const VerifyMedia: React.FC = () => {
                       className="w-full md:w-auto"
                       onClick={() => {
                         const url = getExplorerUrl(result.exact_match?.algo_tx ?? null);
-                        if (url) window.open(url, "_blank");
+                        if (url) {
+                          window.open(url, "_blank");
+                        }
                       }}
                     >
-                      <ExternalLink className="w-4 h-4 mr-2" />View on Explorer
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View Transaction
                     </Button>
                   )}
-                  <Button variant="outline" className="w-full md:w-auto ml-auto" onClick={reset}>
-                    Verify Another
-                  </Button>
                 </div>
               </CardContent>
             </Card>

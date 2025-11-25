@@ -1,4 +1,4 @@
-const DashboardStats = () => {
+const DashboardStats = (props) => {
   const stats = [
     {
       label: "Total Registrations",
@@ -12,7 +12,7 @@ const DashboardStats = () => {
     },
     {
       label: "Trust Score",
-      value: "4.8/5",
+      value: props.reputationScore || "N/A",
       color: "bg-purple-500"
     },
     {

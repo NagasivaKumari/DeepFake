@@ -31,7 +31,7 @@ const fetchTrustScore = async () => {
   return data.trust_score;
 };
 
-export default function Dashboard() {
+export default function Dashboard(props) {
   const { data: registeredMedia = [] } = useQuery({
     queryKey: ['registeredMedia'],
     queryFn: () => base44.entities.RegisteredMedia.list('-created_date', 10),
@@ -208,7 +208,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Reputation Score</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-green-600">4.8</span>
+                    <span className="text-2xl font-bold text-green-600">{props.reputationScore || "N/A"}</span>
                     <span className="text-gray-400">/ 5.0</span>
                   </div>
                 </div>
