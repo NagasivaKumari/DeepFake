@@ -15,6 +15,8 @@ import time
 import secrets
 import tempfile
 import json
+import uuid
+from datetime import datetime
 
 # Optional ML analyzer import (provide graceful fallback if missing)
 try:
@@ -384,6 +386,12 @@ def _build_provenance_graph(
     if len(node_map) <= 1:
         return None
 
+    # Simplify graph visualization by limiting edge density
+    edges = [
+        edge for edge in edges
+        if edge["relationship"] in {"query_match", "declared_lineage", "same_content"}
+    ]
+
     return {
         "nodes": list(node_map.values()),
         "edges": edges,
@@ -392,6 +400,35 @@ def _build_provenance_graph(
         "threshold": similarity_threshold,
         "graph_top_k": graph_top_k,
     }
+
+
+def _build_summary_charts(media: list, similarity_threshold: float) -> dict:
+    """Generate summary data for pie/bar charts based on media relationships."""
+    summary = {
+        "query": 0,
+        "anchor": 0,
+        "near_match": 0,
+        "duplicate": 0,
+        "declared": 0,
+    }
+
+    for item in media:
+        try:
+            similarity = item.get("near_duplicate_similarity", 0)
+            if similarity >= similarity_threshold:
+                summary["near_match"] += 1
+            elif item.get("type") == "duplicate":
+                summary["duplicate"] += 1
+            elif item.get("type") == "declared":
+                summary["declared"] += 1
+            elif item.get("type") == "anchor":
+                summary["anchor"] += 1
+            else:
+                summary["query"] += 1
+        except Exception:
+            continue
+
+    return summary
 
 
 @router.post("/generate")
@@ -432,8 +469,9 @@ def generate_media(payload: GenerateRequest):
         algod_token = settings.ALGOD_TOKEN
         algod_client = algod.AlgodClient(algod_token, algod_address)
 
-        # Get server account (compatible with newer SDKs without to_public_key)
-        sender_private_key = mnemonic.to_private_key(server_mnemonic)
+        # Derive deployer keypair (compatible with newer SDKs without to_public_key)
+        clean_mnemonic = server_mnemonic.replace('"', '').strip()
+        sender_private_key = mnemonic.to_private_key(clean_mnemonic)
         sender_address = account.address_from_private_key(sender_private_key)
 
         # Get suggested params
@@ -557,79 +595,22 @@ def upload_file(file: UploadFile = File(...)):
 
 
 @router.post("/register")
-def register_media(payload: RegisterRequest):
-    """Register media metadata with the on-chain registry (Algorand) or store locally.
+def register_media(payload: RegisterRequest = None, file: UploadFile = None):
+    """Register media metadata with the on-chain registry (Algorand) or store locally."""
+    if not payload:
+        raise HTTPException(status_code=400, detail="Payload is required for registration.")
 
-    This endpoint verifies the creator signature and returns a verified payload. The caller
-    typically uses the returned data to prepare an Algorand transaction (unsigned) that the
-    client signs with Lute and submits to Algorand.
-    """
-    # Metadata signature policy: enforce or skip based on settings.ENFORCE_METADATA_SIGNATURE
-    signature_status = "skipped"
-    if getattr(settings, 'ENFORCE_METADATA_SIGNATURE', False) and not payload.metadata_signature:
-        raise HTTPException(status_code=400, detail="metadata_signature is required by server policy")
-    if payload.metadata_signature:
-        if LUTE_AVAILABLE:
-            try:
-                # Expect Lute client to return either a boolean or recovered address.
-                res = lute_client.verify_signature(payload.sha256_hash, payload.metadata_signature)
-                ok = False
-                if isinstance(res, bool):
-                    ok = res
-                elif isinstance(res, str):
-                    ok = (res.lower() == payload.signer_address.lower())
-                elif isinstance(res, dict):
-                    addr = (res.get("address") or res.get("signer") or "").lower()
-                    ok = bool(addr) and (addr == payload.signer_address.lower())
-                else:
-                    ok = bool(res)
-
-                if not ok:
-                    signature_status = "failed"
-                    if getattr(settings, 'ENFORCE_METADATA_SIGNATURE', False):
-                        raise HTTPException(status_code=403, detail="Lute signature verification failed or signer mismatch")
-                else:
-                    signature_status = "verified"
-            except Exception as e:
-                if getattr(settings, 'ENFORCE_METADATA_SIGNATURE', False):
-                    raise HTTPException(status_code=400, detail=f"Lute verification error: {e}")
-                signature_status = f"error: {e}"
-        else:
-            if getattr(settings, 'ENFORCE_METADATA_SIGNATURE', False):
-                raise HTTPException(status_code=500, detail="No signature verification method available (install Lute SDK)")
-            signature_status = "skipped_no_verifier"
-
-
-    # --- Algorand transaction logic ---
-    # Preferred flow: client pays the registration fee and provides `algo_tx` (txid) in the payload.
-    # If the client did not provide `algo_tx`, the server will attempt to send the payment using
-    # DEPLOYER_MNEMONIC (backwards-compatible). If server sending fails and ENFORCE_TX_NONCE is
-    # enabled, the request will error.
-    algo_tx = getattr(payload, 'algo_tx', None)
-    explorer_url = getattr(payload, 'algo_explorer_url', None)
-    reg_error = None
-
-    # If strict mode is enabled, require a txid-based nonce; otherwise we'd fall back to a random nonce
-    if getattr(settings, 'ENFORCE_TX_NONCE', False) and not algo_tx:
-        detail = f"Algorand transaction is required for registration and was not created: {reg_error if 'reg_error' in locals() else 'client did not provide algo_tx'}"
-        raise HTTPException(status_code=502, detail=detail)
-
-    # --- Save registration data ---
-    from pathlib import Path
-    import json
-    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
-    DATA_PATH.mkdir(parents=True, exist_ok=True)
-    MEDIA_FILE = DATA_PATH / "registered_media.json"
+    if not file:
+        raise HTTPException(status_code=400, detail="File is required for registration.")
 
     # Fetch KYC info for wallet address
     user_address = getattr(payload, 'signer_address', None)
+    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
     KYC_FILE = DATA_PATH / "kyc.json"
-    kyc_email = None
-    kyc_phone = None
+    kyc_status = "not_started"
     if KYC_FILE.exists():
         try:
             raw = json.loads(KYC_FILE.read_text())
-            # support kyc.json being either a list of records or a dict keyed by id
             if isinstance(raw, dict):
                 kyc_records = list(raw.values())
             else:
@@ -637,187 +618,221 @@ def register_media(payload: RegisterRequest):
             for kyc in kyc_records:
                 try:
                     if kyc.get("wallet_address", "").lower() == (user_address or "").lower():
-                        kyc_email = kyc.get("email")
-                        kyc_phone = kyc.get("phone")
+                        kyc_status = kyc.get("status", "not_started")
                         break
                 except Exception:
                     continue
         except Exception:
             pass
-    ipfs_cid = getattr(payload, 'ipfs_cid', None)
-    file_url = getattr(payload, 'file_url', None)
 
-    reg_data = payload.dict()
-    reg_data["email"] = kyc_email
-    reg_data["phone"] = kyc_phone
-    reg_data["ipfs_cid"] = ipfs_cid
-    reg_data["file_url"] = file_url
-    reg_data["algo_tx"] = algo_tx
-    reg_data["algo_explorer_url"] = explorer_url
-    if 'reg_error' in locals():
-        reg_data["algo_error"] = reg_error
-    reg_data["signature_status"] = signature_status
+    if not user_address:
+        return {"status": "wallet_not_connected", "message": "Please connect your wallet."}
 
-    # --- Derive content_key (K = sha256(H)) and a unique registration key (reg_key = sha256(K||nonce)) locally ---
-    try:
-        sha_hex = reg_data.get('sha256_hash') or ''
-        h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha_hex
-        H_bytes = bytes.fromhex(h_hex)
-        K_bytes = hashlib.sha256(H_bytes).digest()
-        content_key_hex = K_bytes.hex()
-        # Prefer txid as nonce to guarantee uniqueness across submissions; fallback to signer+time
-        nonce_src = (
-            algo_tx
-            or f"{reg_data.get('signer_address', '')}:{time.time_ns()}:{secrets.token_hex(4)}"
-        )
-        nonce_bytes = nonce_src.encode('utf-8')
-        reg_key_bytes = hashlib.sha256(K_bytes + nonce_bytes).digest()
-        reg_key_hex = reg_key_bytes.hex()
-        reg_data["content_key"] = content_key_hex
-        reg_data["unique_reg_key"] = reg_key_hex
-    except Exception as e:
-        print(f"[WARN] Failed to compute content/registration keys: {e}")
+    if kyc_status != "verified":
+        return {"status": "kyc_not_approved", "message": "Admin has not approved your KYC."}
 
     try:
-        if MEDIA_FILE.exists():
-            media = json.loads(MEDIA_FILE.read_text())
-        else:
+        # Read image bytes from the uploaded file
+        image_bytes = file.file.read()
+        # Generate unique hash for the image
+        unique_hash = generate_unique_hash(image_bytes)
+        payload.sha256_hash = unique_hash
+
+        # Proceed with registration logic if KYC is verified
+        # --- Algorand transaction logic ---
+        # Preferred flow: client pays the registration fee and provides `algo_tx` (txid) in the payload.
+        # If the client did not provide `algo_tx`, the server will attempt to send the payment using
+        # DEPLOYER_MNEMONIC (backwards-compatible). If server sending fails and ENFORCE_TX_NONCE is
+        # enabled, the request will error.
+        algo_tx = getattr(payload, 'algo_tx', None)
+        explorer_url = getattr(payload, 'algo_explorer_url', None)
+        reg_error = None
+
+        # If strict mode is enabled, require a txid-based nonce; otherwise we'd fall back to a random nonce
+        if getattr(settings, 'ENFORCE_TX_NONCE', False) and not algo_tx:
+            detail = f"Algorand transaction is required for registration and was not created: {reg_error if 'reg_error' in locals() else 'client did not provide algo_tx'}"
+            raise HTTPException(status_code=502, detail=detail)
+
+        # --- Save registration data ---
+        from pathlib import Path
+        import json
+        DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+        DATA_PATH.mkdir(parents=True, exist_ok=True)
+        MEDIA_FILE = DATA_PATH / "registered_media.json"
+
+        ipfs_cid = getattr(payload, 'ipfs_cid', None)
+        file_url = getattr(payload, 'file_url', None)
+
+        reg_data = payload.dict()
+        reg_data["ipfs_cid"] = ipfs_cid
+        reg_data["file_url"] = file_url
+        reg_data["algo_tx"] = algo_tx
+        reg_data["algo_explorer_url"] = explorer_url
+        if 'reg_error' in locals():
+            reg_data["algo_error"] = reg_error
+
+        # --- Derive content_key (K = sha256(H)) and a unique registration key (reg_key = sha256(K||nonce)) locally ---
+        try:
+            sha_hex = reg_data.get('sha256_hash') or ''
+            h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha_hex
+            H_bytes = bytes.fromhex(h_hex)
+            K_bytes = hashlib.sha256(H_bytes).digest()
+            content_key_hex = K_bytes.hex()
+            # Prefer txid as nonce to guarantee uniqueness across submissions; fallback to signer+time
+            nonce_src = (
+                algo_tx
+                or f"{reg_data.get('signer_address', '')}:{time.time_ns()}:{secrets.token_hex(4)}"
+            )
+            nonce_bytes = nonce_src.encode('utf-8')
+            reg_key_bytes = hashlib.sha256(K_bytes + nonce_bytes).digest()
+            reg_key_hex = reg_key_bytes.hex()
+            reg_data["content_key"] = content_key_hex
+            reg_data["unique_reg_key"] = reg_key_hex
+        except Exception as e:
+            print(f"[WARN] Failed to compute content/registration keys: {e}")
+
+        try:
+            if MEDIA_FILE.exists():
+                media = json.loads(MEDIA_FILE.read_text())
+            else:
+                media = []
+        except Exception:
             media = []
-    except Exception:
-        media = []
 
-    # Backfill email/phone for existing records if missing (handle existing legacy data)
-    try:
-        for item in media:
-            sa = item.get("signer_address")
-            if sa and (not item.get("email") or not item.get("phone")):
-                # find kyc for signer
-                if KYC_FILE.exists():
-                    try:
-                        raw = json.loads(KYC_FILE.read_text())
-                        if isinstance(raw, dict):
-                            kyc_records = list(raw.values())
-                        else:
-                            kyc_records = raw
-                        for kyc in kyc_records:
-                            if kyc.get("wallet_address", "").lower() == sa.lower():
-                                item["email"] = item.get("email") or kyc.get("email")
-                                item["phone"] = item.get("phone") or kyc.get("phone")
-                                break
-                    except Exception:
-                        pass
-            # Compute and backfill missing content_key / unique_reg_key for legacy rows
-            try:
-                if not item.get("content_key") and item.get("sha256_hash"):
-                    h_hex = item.get("sha256_hash")
-                    h_hex = h_hex[2:] if isinstance(h_hex, str) and h_hex.startswith('0x') else h_hex
-                    H = bytes.fromhex(h_hex)
-                    K = hashlib.sha256(H).hexdigest()
-                    item["content_key"] = K
-                if not item.get("unique_reg_key") and item.get("content_key"):
-                    # Use txn id if present, else signer:created_time
-                    nonce_src = item.get("algo_tx") or f"{item.get('signer_address','')}:{time.time_ns()}:{secrets.token_hex(4)}"
-                    item["unique_reg_key"] = hashlib.sha256(bytes.fromhex(item["content_key"]) + nonce_src.encode('utf-8')).hexdigest()
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    # --- Embedding computation (original + cropped) ---
-    embedding = None
-    embedding_source = None
-    try:
-        from ..light_detectors import get_embedding_from_bytes  # type: ignore
-        # Fetch file bytes from file_url (IPFS gateway). Avoid very large files (>10MB) for now.
-        if file_url:
-            try:
-                r = requests.get(file_url, timeout=30)
-                if r.status_code < 400 and len(r.content) < 10_000_000:
-                    orig_bytes = r.content
-                    cleaned_bytes = _maybe_crop_watermark(orig_bytes)
-                    use_bytes = cleaned_bytes if cleaned_bytes != orig_bytes else orig_bytes
-                    embedding_source = "cleaned" if use_bytes is cleaned_bytes else "original"
-                    emb_vec = get_embedding_from_bytes(use_bytes)
-                    # Round floats for storage compactness
-                    embedding = [round(float(x), 5) for x in emb_vec][:512]
-            except Exception as e:
-                reg_data["embedding_error"] = f"fetch/embed failed: {e}"  # store diagnostic
-    except Exception as e:
-        reg_data["embedding_error"] = f"embedding module unavailable: {e}"
-
-    if embedding:
-        reg_data["embedding"] = embedding
-        reg_data["embedding_source"] = embedding_source
-
-    # Load existing media again if not already loaded (media variable present). Use for lineage detection.
-    try:
-        existing = media if isinstance(media, list) else []
-        best_sim = -1.0
-        best_reg = None
-        if embedding:
-            for item in existing:
+        # Backfill email/phone for existing records if missing (handle existing legacy data)
+        try:
+            for item in media:
+                sa = item.get("signer_address")
+                if sa and (not item.get("email") or not item.get("phone")):
+                    # find kyc for signer
+                    if KYC_FILE.exists():
+                        try:
+                            raw = json.loads(KYC_FILE.read_text())
+                            if isinstance(raw, dict):
+                                kyc_records = list(raw.values())
+                            else:
+                                kyc_records = raw
+                            for kyc in kyc_records:
+                                if kyc.get("wallet_address", "").lower() == sa.lower():
+                                    item["email"] = item.get("email") or kyc.get("email")
+                                    item["phone"] = item.get("phone") or kyc.get("phone")
+                                    break
+                        except Exception:
+                            pass
+                # Compute and backfill missing content_key / unique_reg_key for legacy rows
                 try:
-                    emb2 = item.get("embedding")
-                    sim = _cosine(embedding, emb2)
-                    if sim > best_sim:
-                        best_sim = sim
-                        best_reg = item
+                    if not item.get("content_key") and item.get("sha256_hash"):
+                        h_hex = item.get("sha256_hash")
+                        h_hex = h_hex[2:] if isinstance(h_hex, str) and h_hex.startswith('0x') else h_hex
+                        H = bytes.fromhex(h_hex)
+                        K = hashlib.sha256(H).hexdigest()
+                        item["content_key"] = K
+                    if not item.get("unique_reg_key") and item.get("content_key"):
+                        # Use txn id if present, else signer:created_time
+                        nonce_src = item.get("algo_tx") or f"{item.get('signer_address','')}:{time.time_ns()}:{secrets.token_hex(4)}"
+                        item["unique_reg_key"] = hashlib.sha256(bytes.fromhex(item["content_key"]) + nonce_src.encode('utf-8')).hexdigest()
                 except Exception:
-                    continue
-        # Similarity threshold (tunable). High to avoid false lineage.
-        if best_reg and best_sim >= 0.92:
-            reg_data["near_duplicate_of"] = best_reg.get("unique_reg_key") or best_reg.get("algo_tx")
-            reg_data["near_duplicate_similarity"] = round(best_sim, 5)
-    except Exception:
-        pass
+                    pass
+        except Exception:
+            pass
 
-    media.append(reg_data)
-    try:
-        MEDIA_FILE.write_text(json.dumps(media, indent=2))
-    except Exception as e:
-        import traceback as _tb, sys as _sys
-        _tb.print_exc(file=_sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Failed to persist registration: {e}")
-    # --- Prepare unsigned application call for on-chain registration ---
-    unsigned_app_txn = None
-    unsigned_app_txn_b64 = None
-    media_key_hex = None
-    reg_key_hex = None
-    try:
-        from ..algorand_app_utils import build_register_app_call
-        # app id from settings
-        app_id_str = getattr(settings, 'proofchain_app_id', None)
-        if app_id_str:
-            app_id = int(app_id_str)
-            # Use payment txid as nonce if available to guarantee uniqueness across submissions
-            nonce = algo_tx or None
-            sender_addr = getattr(payload, 'signer_address', None)
-            sha256_hex = getattr(payload, 'sha256_hash', None)
-            cid = ipfs_cid or reg_data.get('ipfs_cid') or ''
-            if sender_addr and sha256_hex and cid:
-                txn_dict, txn_b64, media_key, reg_key = build_register_app_call(
-                    sender=sender_addr,
-                    app_id=app_id,
-                    sha256_hex=sha256_hex,
-                    cid=cid,
-                    nonce_str=nonce,
-                )
-                unsigned_app_txn = txn_dict
-                unsigned_app_txn_b64 = txn_b64
-                media_key_hex = media_key.hex()
-                reg_key_hex = reg_key.hex()
-    except Exception as e:
-        print(f"[WARN] Failed to prepare unsigned app call: {e}")
+        # --- Embedding computation (original + cropped) ---
+        embedding = None
+        embedding_source = None
+        try:
+            from ..light_detectors import get_embedding_from_bytes  # type: ignore
+            # Fetch file bytes from file_url (IPFS gateway). Avoid very large files (>10MB) for now.
+            if file_url:
+                try:
+                    r = requests.get(file_url, timeout=30)
+                    if r.status_code < 400 and len(r.content) < 10_000_000:
+                        orig_bytes = r.content
+                        cleaned_bytes = _maybe_crop_watermark(orig_bytes)
+                        use_bytes = cleaned_bytes if cleaned_bytes != orig_bytes else orig_bytes
+                        embedding_source = "cleaned" if use_bytes is cleaned_bytes else "original"
+                        emb_vec = get_embedding_from_bytes(use_bytes)
+                        # Round floats for storage compactness
+                        embedding = [round(float(x), 5) for x in emb_vec][:512]
+                except Exception as e:
+                    reg_data["embedding_error"] = f"fetch/embed failed: {e}"  # store diagnostic
+        except Exception as e:
+            reg_data["embedding_error"] = f"embedding module unavailable: {e}"
 
-    response = {"status": "verified_locally", "payload": reg_data}
-    if unsigned_app_txn:
-        response["unsigned_app_call"] = {
-            "txn": unsigned_app_txn,
-            "txn_b64": unsigned_app_txn_b64,
-            "media_key": media_key_hex,
-            "reg_key": reg_key_hex,
-        }
-    return response
+        if embedding:
+            reg_data["embedding"] = embedding
+            reg_data["embedding_source"] = embedding_source
+
+        # Load existing media again if not already loaded (media variable present). Use for lineage detection.
+        try:
+            existing = media if isinstance(media, list) else []
+            best_sim = -1.0
+            best_reg = None
+            if embedding:
+                for item in existing:
+                    try:
+                        emb2 = item.get("embedding")
+                        sim = _cosine(embedding, emb2)
+                        if sim > best_sim:
+                            best_sim = sim
+                            best_reg = item
+                    except Exception:
+                        continue
+            # Similarity threshold (tunable). High to avoid false lineage.
+            if best_reg and best_sim >= 0.92:
+                reg_data["near_duplicate_of"] = best_reg.get("unique_reg_key") or best_reg.get("algo_tx")
+                reg_data["near_duplicate_similarity"] = round(best_sim, 5)
+        except Exception:
+            pass
+
+        media.append(reg_data)
+        try:
+            MEDIA_FILE.write_text(json.dumps(media, indent=2))
+        except Exception as e:
+            import traceback as _tb, sys as _sys
+            _tb.print_exc(file=_sys.stderr)
+            raise HTTPException(status_code=500, detail=f"Failed to persist registration: {e}")
+        # --- Prepare unsigned application call for on-chain registration ---
+        unsigned_app_txn = None
+        unsigned_app_txn_b64 = None
+        media_key_hex = None
+        reg_key_hex = None
+        try:
+            from ..algorand_app_utils import build_register_app_call
+            # app id from settings
+            app_id_str = getattr(settings, 'proofchain_app_id', None)
+            if app_id_str:
+                app_id = int(app_id_str)
+                # Use payment txid as nonce if available to guarantee uniqueness across submissions
+                nonce = algo_tx or None
+                sender_addr = getattr(payload, 'signer_address', None)
+                sha256_hex = getattr(payload, 'sha256_hash', None)
+                cid = ipfs_cid or reg_data.get('ipfs_cid') or ''
+                if sender_addr and sha256_hex and cid:
+                    txn_dict, txn_b64, media_key, reg_key = build_register_app_call(
+                        sender=sender_addr,
+                        app_id=app_id,
+                        sha256_hex=sha256_hex,
+                        cid=cid,
+                        nonce_str=nonce,
+                    )
+                    unsigned_app_txn = txn_dict
+                    unsigned_app_txn_b64 = txn_b64
+                    media_key_hex = media_key.hex()
+                    reg_key_hex = reg_key.hex()
+        except Exception as e:
+            print(f"[WARN] Failed to prepare unsigned app call: {e}")
+
+        response = {"status": "verified_locally", "payload": reg_data}
+        if unsigned_app_txn:
+            response["unsigned_app_call"] = {
+                "txn": unsigned_app_txn,
+                "txn_b64": unsigned_app_txn_b64,
+                "media_key": media_key_hex,
+                "reg_key": reg_key_hex,
+            }
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration failed: {e}")
 
 
 @router.post("/search_similar")
@@ -902,6 +917,27 @@ def search_similar(suspect: UploadFile = File(None), ipfs_cid: str | None = None
     return {"matches": matches[:top_k], "count": len(matches)}
 
 
+@router.get("/visualization_summary")
+def visualization_summary(similarity_threshold: float = 0.9):
+    """Endpoint to return summary data for pie/bar charts."""
+    from pathlib import Path
+    import json
+
+    DATA_PATH = Path(__file__).resolve().parents[1] / "data"
+    MEDIA_FILE = DATA_PATH / "registered_media.json"
+
+    if not MEDIA_FILE.exists():
+        return {"summary": {}, "count": 0}
+
+    try:
+        media = json.loads(MEDIA_FILE.read_text())
+    except Exception:
+        media = []
+
+    summary = _build_summary_charts(media, similarity_threshold)
+    return {"summary": summary, "count": sum(summary.values())}
+
+
 @router.post("/classify")
 def classify_media(
     suspect: UploadFile = File(None),
@@ -909,28 +945,12 @@ def classify_media(
     canonicalize: bool = True,
     similarity_threshold: float = 0.92,
     include_matches: bool = False,
-        top_k: int = 5,
-        include_graph: bool = False,
-        graph_top_k: int = 8,
+    top_k: int = 5,
+    include_graph: bool = False,
+    graph_top_k: int = 8,
+    include_summary: bool = False,
 ):
-    """Classify an input image (uploaded file or existing ipfs_cid) against registered catalog.
-
-    Response schema:
-      {
-        status: "exact_registered" | "derivative" | "unregistered",
-        query_sha256: str,
-        canonical_strategy: str,
-        exact_match: { unique_reg_key, signer_address, file_url, ipfs_cid, sha256_hash, algo_tx } | null,
-        best_match: { unique_reg_key, signer_address, file_url, ipfs_cid, similarity } | null,
-        similarity_threshold: float,
-        matches?: [ ... ] (if include_matches=true),
-                lineage_graph?: { nodes: [...], edges: [...] } | null (when include_graph=true)
-      }
-
-    Canonicalization currently applies watermark inpainting (clone_above_blur) if detected.
-    This allows "original with watermark" vs "same image cleaned" to still be derivative when
-    bytes differ but visual content is near-identical.
-    """
+    """Classify an input image and optionally include graph and summary data."""
     from pathlib import Path
     DATA_PATH = Path(__file__).resolve().parents[1] / "data"
     MEDIA_FILE = DATA_PATH / "registered_media.json"
@@ -1114,6 +1134,10 @@ def classify_media(
             graph_top_k=graph_top_k,
         )
 
+    summary_payload = None
+    if include_summary:
+        summary_payload = _build_summary_charts(media, similarity_threshold)
+
     return {
         "status": status,
         "query_sha256": query_sha256,
@@ -1123,6 +1147,7 @@ def classify_media(
         "similarity_threshold": similarity_threshold,
         "matches": match_list[:top_k] if include_matches else None,
         "lineage_graph": graph_payload,
+        "summary": summary_payload,
     }
 
 
@@ -1697,15 +1722,22 @@ def get_deployer_address():
     """
     try:
         # Prefer deriving the deployer address from DEPLOYER_MNEMONIC when available
-        # This ensures the backend uses the mnemonic in the .env as the canonical receiver.
         addr = None
         mn = getattr(settings, 'DEPLOYER_MNEMONIC', None)
         if mn:
             try:
-               
-                from algosdk import mnemonic as _mnemonic, account as _account
-                priv = _mnemonic.to_private_key(mn.replace('"', '').strip())
-                addr = _account.address_from_private_key(priv)
+                from algosdk import mnemonic as _mn, account as _acct
+                from algosdk.v2client import algod
+                # Prefer building txn with whichever transaction module is available
+                try:
+                    from algosdk.future import transaction as _txn  # type: ignore
+                except Exception:
+                    from algosdk import transaction as _txn  # type: ignore
+
+                # Derive deployer keypair (compatible with newer SDKs without to_public_key)
+                clean_mn = mn.replace('"', '').strip()
+                priv = _mn.to_private_key(clean_mn)
+                addr = _acct.address_from_private_key(priv)
             except Exception:
                 addr = None
         # Fallback to an explicit DEPLOYER_ADDRESS if mnemonic not present or derivation failed
@@ -1729,7 +1761,7 @@ def recompute_reg_key(body: DeriveKeysRequest):
     """
     try:
         sha_hex = body.sha256_hash or ''
-        h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha_hex
+        h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha256_hash
         H = bytes.fromhex(h_hex)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid sha256_hash: {e}")
