@@ -253,7 +253,7 @@ export default function TrustGraph() {
                     <p className="text-sm text-gray-600 mb-3">
                       Get signatures from trusted issuers in your field
                     </p>
-                    <Button variant="outline" size="sm">Learn More</Button>
+                    <Button variant="outline" size="sm"></Button>
                   </div>
                 </div>
               </div>

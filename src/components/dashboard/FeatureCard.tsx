@@ -29,12 +29,6 @@ export default function FeatureCard({ icon: Icon, title, description, step, colo
       </CardHeader>
       <CardContent>
         <p className="text-gray-600 leading-relaxed mb-4">{description}</p>
-        {link && (
-          <div className="flex items-center gap-2 text-blue-600 font-medium group-hover:gap-3 transition-all">
-            Learn more
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        )}
       </CardContent>
     </Card>
   );
