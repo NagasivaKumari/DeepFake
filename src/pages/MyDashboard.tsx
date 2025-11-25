@@ -275,6 +275,8 @@ export default function MyDashboard() {
     );
   }
 
+  const reputationScore = "4.8"; // Example dynamic value
+
   return (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-7xl mx-auto">
@@ -311,7 +313,7 @@ export default function MyDashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-4xl font-bold text-yellow-600">4.8</span>
+                <span className="text-4xl font-bold text-yellow-600">{reputationScore || "N/A"}</span>
                 <span className="text-gray-400">/ 5.0</span>
               </div>
               <div className="flex gap-1">
