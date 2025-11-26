@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Wallet } from "lucide-react";
 import { useWallet } from "../hooks/useWallet";
-import { Button } from "./ui/button";
 
 const ConnectedHeader = () => {
   const {
@@ -11,11 +9,12 @@ const ConnectedHeader = () => {
     disconnect,
     providers,
   } = useWallet();
-  const [showAddress, setShowAddress] = useState(false);
+  const [showProviderSelection, setShowProviderSelection] = useState(false);
 
   const handleConnect = async (provider) => {
     try {
       await connect(provider);
+      setShowProviderSelection(false);
     } catch (e) {
       console.error("Wallet connection failed", e);
     }
@@ -25,23 +24,33 @@ const ConnectedHeader = () => {
     (provider) => provider.metadata.id === activeAccount?.providerId
   );
 
-  console.log("Providers:", providers);
-  console.log("Active Account:", activeAccount);
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              {connectedProvider ? (
+              {connectedProvider && connectedProvider.metadata.icon ? (
                 <img
-                  src={connectedProvider.metadata.icon || "/default-wallet-icon.png"}
-                  alt={connectedProvider.metadata.name || "Wallet"}
+                  src={connectedProvider.metadata.icon}
+                  alt={connectedProvider.metadata.name}
                   className="w-6 h-6"
                 />
               ) : (
-                <Wallet className="w-6 h-6 text-white" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-6 h-6 text-white"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
               )}
             </div>
             <div>
@@ -55,55 +64,74 @@ const ConnectedHeader = () => {
           <div className="flex items-center gap-4">
             {connected && activeAccount ? (
               <button
-                className="flex items-center gap-2"
-                onClick={() => setShowAddress((prev) => !prev)}
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={disconnect}
               >
-                {connectedProvider ? (
+                {connectedProvider && connectedProvider.metadata.icon ? (
                   <img
-                    src={connectedProvider.metadata.icon || "/default-wallet-icon.png"}
-                    alt={connectedProvider.metadata.name || "Wallet"}
-                    className="w-5 h-5"
+                    src={connectedProvider.metadata.icon}
+                    alt={connectedProvider.metadata.name}
+                    className="w-4 h-4 mr-2"
                   />
                 ) : (
-                  <Wallet className="w-5 h-5 text-primary" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="w-4 h-4 mr-2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
                 )}
+                <span>
+                  {activeAccount.address.slice(0, 4)}...{activeAccount.address.slice(-4)}
+                </span>
               </button>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button>Connect Wallet</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {providers.map((provider) => (
-                    <DropdownMenuItem
-                      key={provider.metadata.id}
-                      onClick={() => handleConnect(provider)}
-                    >
-                      <img
-                        src={provider.metadata.icon || "/default-wallet-icon.png"}
-                        alt={provider.metadata.name || "Wallet"}
-                        className="w-6 h-6 mr-2"
-                      />
-                      {provider.metadata.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                onClick={() => setShowProviderSelection((prev) => !prev)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-4 h-4 mr-2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2-1.343-2-3-2zM9 12a3 3 0 106 0v-1a3 3 0 10-6 0v1z"
+                  />
+                </svg>
+                <span>Connect Wallet</span>
+              </button>
             )}
 
-            {showAddress && connected && activeAccount && (
-              <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded shadow-lg p-2">
-                <span className="font-mono text-sm">
-                  {`${activeAccount.address.slice(0, 6)}...${activeAccount.address.slice(
-                    -4
-                  )}`}
-                </span>
-                <button
-                  className="ml-2 text-red-500 text-sm"
-                  onClick={disconnect}
-                >
-                  Disconnect
-                </button>
+            {showProviderSelection && (
+              <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-md shadow-lg p-2 z-10">
+                {providers.map((provider) => (
+                  <button
+                    key={provider.metadata.id}
+                    onClick={() => handleConnect(provider)}
+                    className="flex items-center gap-2 p-2 w-full text-left hover:bg-gray-100"
+                  >
+                    <img
+                      src={provider.metadata.icon || "/default-wallet-icon.png"}
+                      alt={provider.metadata.name || "Wallet"}
+                      className="w-5 h-5"
+                    />
+                    <span>{provider.metadata.name}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
