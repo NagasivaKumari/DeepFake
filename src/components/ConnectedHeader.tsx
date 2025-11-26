@@ -1,4 +1,5 @@
-import { Shield, Check, Wallet } from "lucide-react";
+import { useState } from "react";
+import { Shield, Wallet } from "lucide-react";
 import {
   useWallet,
   WalletProvider,
@@ -9,15 +10,14 @@ import { Button } from "./ui/button";
 
 const ConnectedHeader = () => {
   const {
-    accounts,
     connected,
     providers,
     activeAccount,
-    signTransactions,
     connect,
     disconnect,
   } = useWallet();
   const { peraWallet } = usePeraWallet();
+  const [showAddress, setShowAddress] = useState(false);
 
   const handleConnect = async (provider) => {
     try {
@@ -56,17 +56,29 @@ const ConnectedHeader = () => {
               <div className="text-xs text-muted-foreground">Media Verification</div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             {connected && activeAccount ? (
-              <div className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-primary" />
-                <span className="font-mono text-sm bg-gray-100 p-2 rounded">
-                  {`${activeAccount.address.slice(0, 6)}...${activeAccount.address.slice(-4)}`}
-                </span>
-                <Button onClick={disconnect} variant="outline">
-                  Disconnect
-                </Button>
+              <div className="relative">
+                <button
+                  className="flex items-center gap-2"
+                  onClick={() => setShowAddress((prev) => !prev)}
+                >
+                  <Wallet className="w-5 h-5 text-primary" />
+                </button>
+                {showAddress && (
+                  <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded shadow-lg p-2">
+                    <span className="font-mono text-sm">
+                      {`${activeAccount.address.slice(0, 6)}...${activeAccount.address.slice(-4)}`}
+                    </span>
+                    <button
+                      className="ml-2 text-red-500 text-sm"
+                      onClick={disconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <DropdownMenu>
