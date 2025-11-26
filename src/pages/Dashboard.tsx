@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import storageClient from "@/api/storageClient";
 import { useQuery } from "@tanstack/react-query";
-// ...existing code...
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +21,7 @@ import {
 } from "lucide-react";
 import StatsCard from "../components/dashboard/StatsCard";
 import FeatureCard from "../components/dashboard/FeatureCard";
-
-
 import { useWallet } from "@/hooks/useWallet";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
@@ -33,6 +29,20 @@ export default function Dashboard() {
   const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [kycLoading, setKycLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Fetch reputationScore dynamically
+  const { data: reputationScore = "N/A", isLoading: isReputationLoading } = useQuery({
+    queryKey: ["reputationScore", address],
+    queryFn: async () => {
+      const response = await fetch(`/api/reputation?address=${address}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch reputation score");
+      }
+      const data = await response.json();
+      return data.score;
+    },
+    enabled: !!address, // Only fetch if address is available
+  });
 
   // Always call useQuery at the top level
   const { data: registeredMedia = [] } = useQuery({
@@ -143,7 +153,7 @@ export default function Dashboard() {
           <StatsCard
             icon={TrendingUp}
             label="Trust Score"
-            value={reputationScore || "N/A"}
+            value={isReputationLoading ? "Loading..." : reputationScore}
             color="purple"
           />
           <StatsCard
