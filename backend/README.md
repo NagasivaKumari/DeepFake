@@ -55,3 +55,9 @@ Endpoints (summary)
 Security notes
 - Store API keys and private credentials in a secure store or environment variables — never in client-side code.
 - Require wallet signature on the client and verify on the server before accepting registration requests.
+
+Notes on signing & Lute
+
+-Client-side signing (Lute wallet). Backend prepares unsigned txns and returns them to the client.
+-The contracts/ folder contains PyTeal source for the ProofChain app which uses boxes keyed by SHA-256.
+-Use deploy.py to compile and deploy the contract to TestNet. Provide ALGOD_ADDRESS, ALGOD_TOKEN, and DEPLOYER_MNEMONIC in your environment before running.
