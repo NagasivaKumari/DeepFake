@@ -22,13 +22,25 @@ const ConnectedHeader = () => {
     }
   };
 
+  const connectedProvider = providers.find(
+    (provider) => provider.metadata.id === activeAccount?.providerId
+  );
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-white" />
+              {connectedProvider ? (
+                <img
+                  src={connectedProvider.metadata.icon}
+                  alt={connectedProvider.metadata.name}
+                  className="w-6 h-6"
+                />
+              ) : (
+                <div className="w-6 h-6 bg-gray-300 rounded" />
+              )}
             </div>
             <div>
               <div className="text-lg font-bold text-foreground">ProofChain</div>
@@ -44,7 +56,13 @@ const ConnectedHeader = () => {
                 className="flex items-center gap-2"
                 onClick={() => setShowAddress((prev) => !prev)}
               >
-                <Wallet className="w-5 h-5 text-primary" />
+                {connectedProvider && (
+                  <img
+                    src={connectedProvider.metadata.icon}
+                    alt={connectedProvider.metadata.name}
+                    className="w-5 h-5"
+                  />
+                )}
               </button>
             ) : (
               <DropdownMenu>
