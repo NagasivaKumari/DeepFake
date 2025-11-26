@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Wallet } from "lucide-react";
-import { useWallet, WalletProvider, usePeraWallet } from "../hooks/useWallet";
-// Using wallet context convenience sendPayment instead of manual build/sign
+import { useWallet } from "../hooks/useWallet";
 import { Button } from "./ui/button";
 
 const ConnectedHeader = () => {
@@ -26,6 +25,9 @@ const ConnectedHeader = () => {
     (provider) => provider.metadata.id === activeAccount?.providerId
   );
 
+  console.log("Providers:", providers);
+  console.log("Active Account:", activeAccount);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border">
       <div className="container mx-auto px-6 py-4">
@@ -34,12 +36,12 @@ const ConnectedHeader = () => {
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               {connectedProvider ? (
                 <img
-                  src={connectedProvider.metadata.icon}
-                  alt={connectedProvider.metadata.name}
+                  src={connectedProvider.metadata.icon || "/default-wallet-icon.png"}
+                  alt={connectedProvider.metadata.name || "Wallet"}
                   className="w-6 h-6"
                 />
               ) : (
-                <div className="w-6 h-6 bg-gray-300 rounded" />
+                <Wallet className="w-6 h-6 text-white" />
               )}
             </div>
             <div>
@@ -56,12 +58,14 @@ const ConnectedHeader = () => {
                 className="flex items-center gap-2"
                 onClick={() => setShowAddress((prev) => !prev)}
               >
-                {connectedProvider && (
+                {connectedProvider ? (
                   <img
-                    src={connectedProvider.metadata.icon}
-                    alt={connectedProvider.metadata.name}
+                    src={connectedProvider.metadata.icon || "/default-wallet-icon.png"}
+                    alt={connectedProvider.metadata.name || "Wallet"}
                     className="w-5 h-5"
                   />
+                ) : (
+                  <Wallet className="w-5 h-5 text-primary" />
                 )}
               </button>
             ) : (
@@ -76,8 +80,8 @@ const ConnectedHeader = () => {
                       onClick={() => handleConnect(provider)}
                     >
                       <img
-                        src={provider.metadata.icon}
-                        alt={provider.metadata.name}
+                        src={provider.metadata.icon || "/default-wallet-icon.png"}
+                        alt={provider.metadata.name || "Wallet"}
                         className="w-6 h-6 mr-2"
                       />
                       {provider.metadata.name}
