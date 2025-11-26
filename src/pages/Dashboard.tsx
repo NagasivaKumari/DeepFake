@@ -143,7 +143,7 @@ export default function Dashboard() {
           <StatsCard
             icon={TrendingUp}
             label="Trust Score"
-            value={props.reputationScore || "N/A"}
+            value={reputationScore || "N/A"}
             color="purple"
           />
           <StatsCard

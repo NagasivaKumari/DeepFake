@@ -25,6 +25,8 @@ export default function TrustGraph() {
     { name: "IPFS Network", type: "Storage", verified: true },
   ];
 
+  const reputationScore = 4.8; // This should be dynamically fetched or calculated
+
   return (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
       <div className="max-w-7xl mx-auto">
@@ -43,7 +45,7 @@ export default function TrustGraph() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3 mb-4">
-                <div className="text-5xl font-bold">4.8</div>
+                <div className="text-5xl font-bold">{reputationScore || "N/A"}</div>
                 <div className="text-white/80">/ 5.0</div>
               </div>
               <div className="flex gap-1 mb-3">

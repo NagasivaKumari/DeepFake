@@ -19,6 +19,11 @@ import { format, isValid } from "date-fns";
 import { motion } from "framer-motion";
 import { useWallet } from "@/hooks/useWallet";
 
+async function fetchReputationScore() {
+  // Replace with actual API call
+  return "4.8";
+}
+
 export default function MyDashboard() {
   const { address, isConnected } = useWallet();
   const queryClient = useQueryClient();
@@ -27,6 +32,11 @@ export default function MyDashboard() {
     queryKey: ['registeredMedia'],
     queryFn: () => storageClient.entities.RegisteredMedia.list('-created_date'),
     initialData: []
+  });
+
+  const { data: reputationScore, isLoading: isLoadingReputation } = useQuery({
+    queryKey: ['reputationScore'],
+    queryFn: fetchReputationScore,
   });
 
   const revokeMediaMutation = useMutation({
@@ -66,14 +76,7 @@ export default function MyDashboard() {
     },
     onError: (error) => {
       console.error('Revoke mutation error:', error);
-      if (error?.response) {
-        error.response.text().then((text) => {
-          console.error('Revoke error response body:', text);
-          alert('Failed to revoke: ' + text);
-        });
-      } else {
-        alert('Failed to revoke: ' + (error?.message || error));
-      }
+      alert('Failed to revoke: ' + (error?.message || error));
     }
   });
 
@@ -236,9 +239,9 @@ export default function MyDashboard() {
                   const id = media.sha256_hash;
                   if (id && typeof id === 'string' && id.length > 10) {
                     if (media.status === 'verified') {
-                      revokeMediaMutation.mutate({ id, status: 'revoked' });
+                      revokeMediaMutation.mutate();
                     } else if (media.status === 'revoked') {
-                      revokeMediaMutation.mutate({ id, status: 'verified' });
+                      revokeMediaMutation.mutate();
                     }
                   } else {
                     alert('Invalid or missing media hash. Cannot update status.');
@@ -274,8 +277,6 @@ export default function MyDashboard() {
       </div>
     );
   }
-
-  const reputationScore = "4.8"; // Example dynamic value
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-12 px-4" style={{ paddingTop: '148.8px' }}>
@@ -313,8 +314,14 @@ export default function MyDashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-4xl font-bold text-yellow-600">{reputationScore || "N/A"}</span>
-                <span className="text-gray-400">/ 5.0</span>
+                {isLoadingReputation ? (
+                  <span className="text-gray-400 animate-pulse">Loading...</span>
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold text-yellow-600">{String(reputationScore) || "N/A"}</span>
+                    <span className="text-gray-400">/ 5.0</span>
+                  </>
+                )}
               </div>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map(i => (
