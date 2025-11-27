@@ -5,6 +5,7 @@ requests==2.31.0
 pydantic==1.10.11
 py-algorand-sdk==2.1.0
 python-multipart==0.0.6
+pyteal
 # Lute wallet SDK (placeholder) - replace with the real package name when known
 # Example: lute-sdk==0.1.0
 

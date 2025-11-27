@@ -24,6 +24,22 @@ async function fetchReputationScore() {
   return "4.8";
 }
 
+type RegisteredMediaType = {
+  file_name?: string;
+  created_date?: string | Date;
+  ai_model?: string;
+  unique_reg_key?: string;
+  sha256_hash?: string;
+  perceptual_hash?: string;
+  ipfs_cid?: string;
+  file_url?: string;
+  algo_tx?: string;
+  status?: string;
+  signer_address?: string;
+  owner_address?: string;
+  address?: string;
+};
+
 export default function MyDashboard() {
   const { address, isConnected } = useWallet();
   const queryClient = useQueryClient();
@@ -98,41 +114,43 @@ export default function MyDashboard() {
   };
 
 
-  // Helper for copying text
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  // Helper to safely format dates
-  const safeFormat = (dateValue, fmt) => {
-    const d = new Date(dateValue);
-    return isValid(d) ? format(d, fmt) : "-";
-  };
-
-  // Helper to get the correct ID for PATCH and keys (use sha256_hash)
-  const getMediaId = (media, idx) => media.sha256_hash || idx;
-
-  const getExplorerUrl = (txn) => txn ? `https://lora.algokit.io/testnet/transaction/${txn}` : null;
-
-  const MediaCard = ({ media, idx }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg mb-1">{media.file_name}</h3>
-              <p className="text-sm text-gray-500">
-                {safeFormat(media.created_date, "MMM d, yyyy 'at' h:mm a")}
-              </p>
+  // Helper to copy text to clipboard
+    const handleCopy = (text: string) => {
+      navigator.clipboard.writeText(text);
+    };
+  
+    // Helper to safely format dates
+    const safeFormat = (dateValue: string | Date, fmt: string) => {
+      const d = new Date(dateValue);
+      return isValid(d) ? format(d, fmt) : "-";
+    };
+  
+    // Helper to get the correct ID for PATCH and keys (use sha256_hash)
+    const getMediaId = (media: RegisteredMediaType, idx: number) => media.sha256_hash || idx;
+  
+    const getExplorerUrl = (txn: string | undefined) => txn ? `https://lora.algokit.io/testnet/transaction/${txn}` : null;
+  
+    const MediaCard = ({ media, idx }: { media: RegisteredMediaType; idx: number }) => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg mb-1">{media.file_name}</h3>
+                <p className="text-sm text-gray-500">
+                  <code className="text-xs break-all">{media.unique_reg_key ? media.unique_reg_key : '—'}</code>
+                  {media.unique_reg_key && (
+                    <Button size="icon" variant="ghost" className="p-1" title="Copy Registration Key" onClick={() => handleCopy(media.unique_reg_key!)}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </Button>
+                  )}
+                </p>
+              </div>
             </div>
-            <Badge className={getStatusBadge(media.status)}>
-              {media.status}
-            </Badge>
-          </div>
 
           <div className="space-y-2 mb-4">
             <div className="flex justify-between text-sm">
@@ -142,9 +160,9 @@ export default function MyDashboard() {
             <div className="flex justify-between text-sm items-center gap-2">
               <span className="text-gray-600">Registration Key</span>
               <span className="flex items-center gap-1">
-                <code className="text-xs break-all">{(media as any).unique_reg_key ? (media as any).unique_reg_key : '—'}</code>
-                {(media as any).unique_reg_key && (
-                  <Button size="icon" variant="ghost" className="p-1" title="Copy Registration Key" onClick={() => handleCopy((media as any).unique_reg_key)}>
+                <code className="text-xs break-all">{media.unique_reg_key ? media.unique_reg_key : '—'}</code>
+                {media.unique_reg_key && (
+                  <Button size="icon" variant="ghost" className="p-1" title="Copy Registration Key" onClick={() => handleCopy(media.unique_reg_key!)}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </Button>
                 )}
