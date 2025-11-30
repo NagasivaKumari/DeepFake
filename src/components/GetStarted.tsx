@@ -1,7 +1,6 @@
-
 import React from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import { Wallet, CheckCircle2 } from "lucide-react";
 import { useWallet } from "@/hooks/useWallet";
 import { toast } from "@/components/ui/use-toast";
