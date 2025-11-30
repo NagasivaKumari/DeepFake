@@ -87,3 +87,12 @@ export const calculateVariance = (numbers: number[]): number => {
     const avg = calculateAverage(numbers);
     return numbers.reduce((sum, num) => sum + Math.pow(num - avg, 2), 0) / numbers.length;
 };
+
+// Added a utility function to calculate the interquartile range (IQR) of an array of numbers
+export const calculateIQR = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor((sorted.length / 4))];
+    const q3 = sorted[Math.ceil((sorted.length * (3 / 4))) - 1];
+    return q3 - q1;
+};
