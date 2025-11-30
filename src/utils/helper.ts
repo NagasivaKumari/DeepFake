@@ -243,3 +243,12 @@ export const calculateWeightedStandardDeviation = (numbers: number[], weights: n
     const weightedVariance = calculateWeightedVariance(numbers, weights);
     return Math.sqrt(weightedVariance);
 };
+
+// Added a utility function to calculate the interdecile range of an array of numbers
+export const calculateInterdecileRange = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const d1 = sorted[Math.floor((sorted.length * 0.1))];
+    const d9 = sorted[Math.ceil((sorted.length * 0.9)) - 1];
+    return d9 - d1;
+};
