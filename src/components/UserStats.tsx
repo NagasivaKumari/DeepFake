@@ -15,6 +15,16 @@ const UserStats = () => {
         return ((stats.inactiveUsers / stats.totalUsers) * 100).toFixed(2);
     };
 
+    // Added a new calculated metric: User Growth Rate
+    const calculateUserGrowthRate = (previousTotal: number, currentTotal: number): string => {
+        if (previousTotal === 0) return "N/A";
+        const growthRate = ((currentTotal - previousTotal) / previousTotal) * 100;
+        return growthRate.toFixed(2);
+    };
+
+    // Example previous total for demonstration
+    const previousTotalUsers = 1400;
+
     return (
         <div>
             <h2>User Statistics</h2>
@@ -24,6 +34,7 @@ const UserStats = () => {
                 <li>Inactive Users: {stats.inactiveUsers}</li>
                 <li>Active Percentage: {calculateActivePercentage()}%</li>
                 <li>Inactive Percentage: {calculateInactivePercentage()}%</li>
+                <li>User Growth Rate: {calculateUserGrowthRate(previousTotalUsers, stats.totalUsers)}%</li>
             </ul>
             <p>Last updated: {new Date().toLocaleString()}</p>
         </div>
