@@ -2,7 +2,6 @@ import React from 'react';
 
 const ExternalServicesIntegration = () => {
   const services = [
-    { name: 'Slack', description: 'Receive notifications and updates in Slack channels.' },
     { name: 'Zapier', description: 'Automate workflows by connecting with Zapier.' },
     { name: 'Google Analytics', description: 'Track and analyze user interactions on your platform.' },
   ];
