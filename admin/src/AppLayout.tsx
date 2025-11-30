@@ -28,6 +28,7 @@ import RoleBasedDashboardViews from "./RoleBasedDashboardViews";
 import AuditLogSearchFilter from "./AuditLogSearchFilter";
 import DashboardPerformanceMetrics from "./DashboardPerformanceMetrics";
 import UserSegmentation from "./UserSegmentation";
+import CustomWidgetsMarketplace from "./CustomWidgetsMarketplace";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -122,6 +123,7 @@ export default function AppLayout() {
               <AuditLogSearchFilter />
               <DashboardPerformanceMetrics />
               <UserSegmentation />
+              <CustomWidgetsMarketplace />
             </div>
           </main>
         </div>
