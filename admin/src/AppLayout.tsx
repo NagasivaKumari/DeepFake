@@ -36,6 +36,7 @@ import IntegrationWithExternalServices from "./IntegrationWithExternalServices";
 import AdminOnboardingGuide from "./AdminOnboardingGuide";
 import AccessLogs from "./AccessLogs";
 import CustomizableEmailTemplates from "./CustomizableEmailTemplates";
+import DarkModeScheduler from "./DarkModeScheduler";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -198,6 +199,7 @@ export default function AppLayout() {
             element={<UserSegmentation />}
           />
         </Routes>
+        <DarkModeScheduler />
       </div>
     </Router>
   );
