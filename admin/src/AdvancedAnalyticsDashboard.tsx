@@ -8,6 +8,13 @@ const AdvancedAnalyticsDashboard = () => {
     { name: 'Day 3', retention: 85, sessionDuration: 7 },
   ]);
 
+  // Add a table to display key metrics
+  const metrics = [
+    { id: 1, metric: 'Active Users', value: 1200 },
+    { id: 2, metric: 'New Signups', value: 300 },
+    { id: 3, metric: 'Churn Rate', value: '5%' },
+  ];
+
   return (
     <div>
       <h2>Advanced Analytics Dashboard</h2>
@@ -30,6 +37,25 @@ const AdvancedAnalyticsDashboard = () => {
           <YAxis />
           <Tooltip />
         </LineChart>
+      </div>
+      <div>
+        <h3>Key Metrics</h3>
+        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((data) => (
+              <tr key={data.id}>
+                <td>{data.metric}</td>
+                <td>{data.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
