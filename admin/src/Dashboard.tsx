@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import StatsCard from "../../src/components/dashboard/StatsCard";
 import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
 import Button from "./Button"; // Importing a hypothetical Button component
@@ -27,11 +27,28 @@ import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical Adm
 import { triggerZapierWebhook } from "../../src/utils/zapierIntegration";
 
 const Dashboard = () => {
+  const [reputationScore, setReputationScore] = useState(null);
+
+  useEffect(() => {
+    const fetchReputationScore = async () => {
+      try {
+        const response = await fetch("/api/reputation-score");
+        const data = await response.json();
+        setReputationScore(data.score);
+      } catch (error) {
+        console.error("Failed to fetch reputation score", error);
+      }
+    };
+
+    fetchReputationScore();
+  }, []);
+
   // Added a section to display admin statistics
   const stats = [
     { label: "Total Users", value: 1200 },
     { label: "Media Items", value: 450 },
     { label: "Pending Approvals", value: 35 },
+    { label: "Reputation Score", value: reputationScore || "N/A" },
   ];
 
   // Added action buttons for admin tasks
