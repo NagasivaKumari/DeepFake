@@ -1,8 +1,5 @@
-import { sendSlackNotification } from '../utils/slackNotifications';
-
 function notifyUserAction(action) {
-  const message = `User performed the following action: ${action}`;
-  sendSlackNotification(message);
+  // Removed the functionality as it's no longer needed
 }
 
 export default notifyUserAction;
