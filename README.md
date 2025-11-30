@@ -51,30 +51,49 @@ When media is uploaded or created, its unique hash, metadata, and creator’s ve
    ```bash
    cd backend
    pip install -r requirements.txt
-   
+   ```
 2. Configure environment variables:
 
-DEPLOYER_MNEMONIC – Algorand deployer account mnemonic
-ALGOD_ADDRESS, ALGOD_TOKEN – Algorand / PureStake endpoint
-PINATA_API_KEY, PINATA_API_SECRET – Pinata IPFS credentials
-Optional: SMTP + AI keys as described in backend/README_PROOFCHAIN.md
+   `DEPLOYER_MNEMONIC` – Algorand deployer account mnemonic
+   `ALGOD_ADDRESS`, `ALGOD_TOKEN` – Algorand / PureStake endpoint
+   `PINATA_API_KEY`, `PINATA_API_SECRET` – Pinata IPFS credentials
+   Optional: SMTP + AI keys as described in backend/README_PROOFCHAIN.md
 
-Run the API:
-uvicorn app.main:app --reload --port 8000
+3. Run the API:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
 
-Frontend (React + Vite)
-Install dependencies:
-cd DeepFakenpm install
+### Frontend (React + Vite)
+1. Install dependencies:
+   ```bash
+   cd DeepFake
+   npm install
+   ```
 
-Start the dev server:
-npm run dev
-Ensure the frontend points to the backend at http://127.0.0.1:8000 for API calls.
+2. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+   Ensure the frontend points to the backend at http://127.0.0.1:8000 for API calls.
 
-Admin Dashboard
-From DeepFake/admin:
-npm installnpm run dev
+### Admin Dashboard
+1. Navigate to the Admin Directory:
+   ```bash
+   cd admin
+   ```
 
-Short summary: 
+2. Install Dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the Admin Dashboard:
+   ```bash
+   npm run dev
+   ```
+
+### Short summary: 
 
 -Hashing: SHA-256 (exact) + pHash (perceptual)
 
@@ -90,7 +109,7 @@ Short summary:
 
 -Decentralized Deepfake & Misinformation Verification System
 
-Key Technologies and Roles
+## Key Technologies and Roles
 
 - Blockchain Layer: Algorand — immutable, fast, low-cost, energy-efficient store for content proofs (SHA-256 & perceptual hashes, timestamps, and creator addresses).
 - Smart Contracts: PyTeal — stateful contract to map content hashes to metadata and creator addresses (using Algorand boxes).
@@ -370,3 +389,89 @@ Future Enhancements:
 - Multi‑band watermark detection
 - ANN index (FAISS) for scalability
 - Provenance chain visualization (graph of near duplicates)
+
+## Enhanced Documentation
+
+### Getting Started
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/NagasivaKumari/base44-fetch-mirror.git
+   ```
+
+2. **Navigate to the Project Directory**:
+   ```bash
+   cd base44-fetch-mirror/DeepFake
+   ```
+
+3. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+4. **Start the Development Server**:
+   ```bash
+   npm run dev
+   ```
+
+### Features Overview
+
+- **Dark Mode Support**: Toggle between light and dark themes.
+- **User Activity Tracker**: Monitor user actions in real-time.
+- **Customizable Notifications**: Configure email, SMS, and in-app notifications.
+- **Advanced Search**: Search users, media, and logs with filters.
+- **Error Boundary**: Catch and display errors gracefully.
+- **Export Data**: Export user data in CSV or JSON format.
+- **Real-Time Analytics**: View live updates on user activity.
+- **Multi-Language Support**: Select preferred language for the dashboard.
+
+### Admin Dashboard Setup
+
+1. **Navigate to the Admin Directory**:
+   ```bash
+   cd admin
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Start the Admin Dashboard**:
+   ```bash
+   npm run dev
+   ```
+
+### Backend Setup
+
+1. **Navigate to the Backend Directory**:
+   ```bash
+   cd backend
+   ```
+
+2. **Install Python Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the Backend Server**:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+
+### Deployment
+
+- **Frontend**: Deployed on Vercel.
+- **Backend**: Hosted on a cloud server with FastAPI.
+- **Smart Contracts**: Deployed on Algorand TestNet.
+
+### Contribution Guidelines
+
+1. Fork the repository.
+2. Create a new branch for your feature.
+3. Commit your changes with clear messages.
+4. Submit a pull request for review.
+
+### License
+
+This project is licensed under the MIT License.
