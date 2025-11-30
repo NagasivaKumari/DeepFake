@@ -13,6 +13,7 @@ import DataExportTool from "./DataExportTool";
 import DarkModeToggle from "./DarkModeToggle";
 import SystemLogsViewer from "./SystemLogsViewer";
 import CustomizableWidgets from "./CustomizableWidgets";
+import TwoFactorAuthentication from "./TwoFactorAuthentication";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -93,6 +94,7 @@ export default function AppLayout() {
             <DarkModeToggle />
             <SystemLogsViewer />
             <CustomizableWidgets />
+            <TwoFactorAuthentication />
           </div>
         </main>
       </div>
