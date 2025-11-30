@@ -147,3 +147,13 @@ export const calculateSkewness = (numbers: number[]): number => {
     const skewness = numbers.reduce((sum, num) => sum + Math.pow((num - avg) / stdDev, 3), 0) / n;
     return skewness;
 };
+
+// Added a utility function to calculate the kurtosis of an array of numbers
+export const calculateKurtosis = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    const stdDev = calculateStandardDeviation(numbers);
+    const n = numbers.length;
+    const kurtosis = numbers.reduce((sum, num) => sum + Math.pow((num - avg) / stdDev, 4), 0) / n - 3;
+    return kurtosis;
+};
