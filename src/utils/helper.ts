@@ -18,8 +18,12 @@ export const findMin = (numbers: number[]): number => {
     return Math.min(...numbers);
 };
 
+// Improved the calculateAverage function to handle edge cases with a warning
 export const calculateAverage = (numbers: number[]): number => {
-    if (numbers.length === 0) return 0;
+    if (numbers.length === 0) {
+        console.warn('Warning: Attempted to calculate average of an empty array.');
+        return 0;
+    }
     return calculateSum(numbers) / numbers.length;
 };
 
