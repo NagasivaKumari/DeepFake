@@ -38,3 +38,8 @@ export const calculateStandardDeviation = (numbers: number[]): number => {
     const variance = numbers.reduce((sum, num) => sum + Math.pow(num - avg, 2), 0) / numbers.length;
     return Math.sqrt(variance);
 };
+
+export const calculateRange = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    return Math.max(...numbers) - Math.min(...numbers);
+};
