@@ -6,6 +6,7 @@ import base64
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from ..config import settings
+from cryptography.fernet import Fernet
 
 router = APIRouter()
 
@@ -142,7 +143,17 @@ async def ai_generate(req: AIGenerateRequest):
             'x-rapidapi-host': "runwayml.p.rapidapi.com",
             'Content-Type': "application/json"
         }
-        conn.request("POST", "/generate/text", payload, headers)
+
+        # Load encryption key from environment variable
+        ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+        if not ENCRYPTION_KEY:
+            raise RuntimeError("ENCRYPTION_KEY environment variable is not set.")
+
+        encryptor = Fernet(ENCRYPTION_KEY)
+
+        # Encrypt the payload for RapidAPI
+        encrypted_payload = encryptor.encrypt(payload.encode()).decode()
+        conn.request("POST", "/generate/text", encrypted_payload, headers)
         res = conn.getresponse()
         data = res.read()
         print(f"RapidAPI Video Response Status: {res.status}")
