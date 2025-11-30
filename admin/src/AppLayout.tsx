@@ -27,6 +27,7 @@ import CustomizableNotifications from "./CustomizableNotifications";
 import RoleBasedDashboardViews from "./RoleBasedDashboardViews";
 import AuditLogSearchFilter from "./AuditLogSearchFilter";
 import DashboardPerformanceMetrics from "./DashboardPerformanceMetrics";
+import UserSegmentation from "./UserSegmentation";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -120,6 +121,7 @@ export default function AppLayout() {
               <RoleBasedDashboardViews role="admin" />
               <AuditLogSearchFilter />
               <DashboardPerformanceMetrics />
+              <UserSegmentation />
             </div>
           </main>
         </div>
@@ -174,6 +176,10 @@ export default function AppLayout() {
           <Route
             path="/dashboard-performance-metrics"
             element={<DashboardPerformanceMetrics />}
+          />
+          <Route
+            path="/user-segmentation"
+            element={<UserSegmentation />}
           />
         </Routes>
       </div>
