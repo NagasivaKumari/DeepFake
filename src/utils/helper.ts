@@ -113,3 +113,11 @@ export const calculateTrimmedMean = (numbers: number[], trimPercent: number): nu
     const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
     return calculateAverage(trimmed);
 };
+
+// Added a utility function to calculate the weighted mean of an array of numbers
+export const calculateWeightedMean = (numbers: number[], weights: number[]): number => {
+    if (numbers.length === 0 || numbers.length !== weights.length) return 0;
+    const weightedSum = numbers.reduce((sum, num, index) => sum + num * weights[index], 0);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    return weightedSum / totalWeight;
+};
