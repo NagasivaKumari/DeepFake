@@ -54,6 +54,7 @@ import NotificationSettings from "./NotificationSettings";
 import AdvancedSearch from "./AdvancedSearch";
 import ErrorBoundary from "./ErrorBoundary";
 import ExportData from "./ExportData";
+import RealTimeAnalytics from "./RealTimeAnalytics";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -177,6 +178,7 @@ export default function AppLayout() {
                 <NotificationSettings />
                 <AdvancedSearch />
                 <ExportData />
+                <RealTimeAnalytics />
               </div>
             </main>
           </div>
