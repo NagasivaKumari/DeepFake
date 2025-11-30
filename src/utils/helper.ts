@@ -67,3 +67,16 @@ export const calculateHarmonicMean = (numbers: number[]): number => {
     const reciprocalSum = numbers.reduce((sum, num) => sum + 1 / num, 0);
     return numbers.length / reciprocalSum;
 };
+
+// Added a utility function to calculate the mode of an array of numbers
+export const calculateMode = (numbers: number[]): number[] => {
+    if (numbers.length === 0) return [];
+    const frequencyMap: Record<number, number> = {};
+    numbers.forEach(num => {
+        frequencyMap[num] = (frequencyMap[num] || 0) + 1;
+    });
+    const maxFrequency = Math.max(...Object.values(frequencyMap));
+    return Object.keys(frequencyMap)
+        .filter(key => frequencyMap[Number(key)] === maxFrequency)
+        .map(Number);
+};
