@@ -16,6 +16,7 @@ from fastapi.security import OAuth2PasswordBearer
 from .websocket import app as websocket_app
 from .activity_logs import app as activity_logs_app
 from slowapi.middleware import SlowAPIMiddleware
+from routes.user_stats import router as user_stats_router
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -90,6 +91,7 @@ app.include_router(registrations.router)
 app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(ai_generate.router)
+app.include_router(user_stats_router)
 
 # Include WebSocket routes
 app.mount("/websocket", websocket_app)
