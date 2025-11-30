@@ -43,6 +43,7 @@ import TwoWayUserCommunication from "./TwoWayUserCommunication";
 import ExternalServicesIntegration from "./ExternalServicesIntegration";
 import TwoWayCommunication from "./TwoWayCommunication";
 import AlgorandSubscription from "./AlgorandSubscription";
+import CustomizableDashboardLayout from "./CustomizableDashboardLayout";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -148,6 +149,7 @@ export default function AppLayout() {
               <AdminRoleAnalytics />
               <DashboardPerformanceMetrics />
               <AuditLogExport />
+              <CustomizableDashboardLayout />
             </div>
           </main>
         </div>
