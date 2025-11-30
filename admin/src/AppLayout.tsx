@@ -26,6 +26,7 @@ import AIPoweredInsights from "./AIPoweredInsights";
 import CustomizableNotifications from "./CustomizableNotifications";
 import RoleBasedDashboardViews from "./RoleBasedDashboardViews";
 import AuditLogSearchFilter from "./AuditLogSearchFilter";
+import DashboardPerformanceMetrics from "./DashboardPerformanceMetrics";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -118,6 +119,7 @@ export default function AppLayout() {
               <CustomizableNotifications />
               <RoleBasedDashboardViews role="admin" />
               <AuditLogSearchFilter />
+              <DashboardPerformanceMetrics />
             </div>
           </main>
         </div>
@@ -168,6 +170,10 @@ export default function AppLayout() {
           <Route
             path="/audit-log-search-filter"
             element={<AuditLogSearchFilter />}
+          />
+          <Route
+            path="/dashboard-performance-metrics"
+            element={<DashboardPerformanceMetrics />}
           />
         </Routes>
       </div>
