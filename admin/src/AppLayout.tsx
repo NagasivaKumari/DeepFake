@@ -105,6 +105,7 @@ export default function AppLayout() {
         <div
           style={layoutStyle}
           className={`app-layout ${darkMode ? "dark-mode" : ""}`}
+          role="main"
         >
           <Header />
           {isBannerVisible && (

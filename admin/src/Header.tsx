@@ -19,7 +19,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header style={{
+    <header className="header" role="banner" aria-label="Admin Dashboard Header" style={{
       height: 60,
       background: "linear-gradient(90deg, #1976d2 0%, #1565c0 100%)",
       color: "#fff",
