@@ -1,5 +1,6 @@
 import React from "react";
 import StatsCard from "./StatsCard"; // Importing a hypothetical StatsCard component
+import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -17,6 +18,10 @@ const Dashboard = () => {
         {stats.map((stat, index) => (
           <StatsCard key={index} label={stat.label} value={stat.value} />
         ))}
+      </div>
+      <div className="recent-activities-section">
+        <h2>Recent Activities</h2>
+        <RecentActivities />
       </div>
     </div>
   );
