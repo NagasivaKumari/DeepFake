@@ -2,7 +2,7 @@ import React from 'react';
 
 const NewFeature = () => {
     const handleClick = () => {
-        console.log('Button clicked!');
+        console.log('Button clicked! Performing action...');
     };
 
     return (
