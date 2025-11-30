@@ -24,6 +24,7 @@ import AdminUserManagement from "./AdminUserManagement"; // Importing a hypothet
 import AdminNotificationSettings from "./AdminNotificationSettings"; // Importing a hypothetical AdminNotificationSettings component
 import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
 import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
+import { sendSlackNotification } from "../utils/slackNotifications";
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -48,7 +49,13 @@ const Dashboard = () => {
         <RecentActivities />
       </div>
       <div className="action-buttons">
-        <Button label="Add User" onClick={() => console.log("Add User clicked")} />
+        <Button
+          label="Add User"
+          onClick={async () => {
+            console.log("Add User clicked");
+            await sendSlackNotification("A new user was added from the admin dashboard.");
+          }}
+        />
         <Button label="Approve Media" onClick={() => console.log("Approve Media clicked")} />
         <Button label="View Reports" onClick={() => console.log("View Reports clicked")} />
       </div>
