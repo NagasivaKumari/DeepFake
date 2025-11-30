@@ -96,3 +96,11 @@ export const calculateIQR = (numbers: number[]): number => {
     const q3 = sorted[Math.ceil((sorted.length * (3 / 4))) - 1];
     return q3 - q1;
 };
+
+// Added a utility function to calculate the midrange of an array of numbers
+export const calculateMidrange = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const max = Math.max(...numbers);
+    const min = Math.min(...numbers);
+    return (max + min) / 2;
+};
