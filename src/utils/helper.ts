@@ -266,3 +266,10 @@ export const calculateMeanAbsolutePercentageError = (actual: number[], predicted
     const percentageErrorSum = actual.reduce((sum, value, index) => sum + Math.abs((value - predicted[index]) / value), 0);
     return (percentageErrorSum / actual.length) * 100;
 };
+
+// Added a utility function to calculate the symmetric mean absolute percentage error between two arrays
+export const calculateSymmetricMeanAbsolutePercentageError = (actual: number[], predicted: number[]): number => {
+    if (actual.length === 0 || actual.length !== predicted.length) return 0;
+    const symmetricPercentageErrorSum = actual.reduce((sum, value, index) => sum + Math.abs(value - predicted[index]) / ((Math.abs(value) + Math.abs(predicted[index])) / 2), 0);
+    return (symmetricPercentageErrorSum / actual.length) * 100;
+};
