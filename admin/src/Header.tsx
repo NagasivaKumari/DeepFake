@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./Header.css"; // Importing CSS for responsive styles
 
 
 const HeaderIcon = ({ icon, tooltip }: { icon: JSX.Element; tooltip: string }) => (
@@ -81,3 +82,5 @@ const Header: React.FC = () => {
 };
 
 export default Header;
+
+/* Add responsive styles */
