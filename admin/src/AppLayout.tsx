@@ -23,6 +23,7 @@ import MultiLanguageSupport from "./MultiLanguageSupport";
 import AdminCollaborationTools from "./AdminCollaborationTools";
 import ScheduledReports from "./ScheduledReports";
 import AIPoweredInsights from "./AIPoweredInsights";
+import CustomizableNotifications from "./CustomizableNotifications";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -112,6 +113,7 @@ export default function AppLayout() {
               <AdminCollaborationTools />
               <ScheduledReports />
               <AIPoweredInsights />
+              <CustomizableNotifications />
             </div>
           </main>
         </div>
@@ -150,6 +152,10 @@ export default function AppLayout() {
           <Route
             path="/ai-powered-insights"
             element={<AIPoweredInsights />}
+          />
+          <Route
+            path="/customizable-notifications"
+            element={<CustomizableNotifications />}
           />
         </Routes>
       </div>
