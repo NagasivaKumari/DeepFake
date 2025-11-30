@@ -25,9 +25,11 @@ import AdminNotificationSettings from "./AdminNotificationSettings";
 import AdminThemeSettings from "./AdminThemeSettings";
 import AdminDataBackup from "./AdminDataBackup";
 import { triggerZapierWebhook } from "../../src/utils/zapierIntegration";
+import axios from "axios";
 
 const Dashboard = () => {
   const [reputationScore, setReputationScore] = useState(null);
+  const [userStats, setUserStats] = useState({ posts: 0, followers: 0, following: 0 });
 
   useEffect(() => {
     const fetchReputationScore = async () => {
@@ -40,7 +42,17 @@ const Dashboard = () => {
       }
     };
 
+    const fetchUserStats = async () => {
+      try {
+        const response = await axios.get("/api/user-stats");
+        setUserStats(response.data);
+      } catch (error) {
+        console.error("Error fetching user stats:", error);
+      }
+    };
+
     fetchReputationScore();
+    fetchUserStats();
   }, []);
 
   const stats = [
@@ -70,6 +82,23 @@ const Dashboard = () => {
       </div>
       <div className="action-buttons">
         <Button label="Trigger Zapier Webhook" onClick={triggerZapierWebhook} />
+      </div>
+      <div className="user-stats">
+        <h2>User Statistics</h2>
+        <div className="stats">
+          <div className="stat">
+            <span>Posts</span>
+            <span>{userStats.posts}</span>
+          </div>
+          <div className="stat">
+            <span>Followers</span>
+            <span>{userStats.followers}</span>
+          </div>
+          <div className="stat">
+            <span>Following</span>
+            <span>{userStats.following}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
