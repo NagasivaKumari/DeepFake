@@ -21,14 +21,19 @@ const contentStyle: React.CSSProperties = {
   padding: "40px 0"
 };
 
-const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={layoutStyle}>
-    <Header />
-    <div style={mainRowStyle}>
-      <Sidebar />
-      <main style={contentStyle}>{children}</main>
+export default function AppLayout() {
+  return (
+    <div style={layoutStyle}>
+      <Header />
+      <div style={mainRowStyle}>
+        <Sidebar />
+        <main style={contentStyle}>
+          <div>
+            <h1>Welcome to the Admin Panel</h1>
+            <p>Manage your application here.</p>
+          </div>
+        </main>
+      </div>
     </div>
-  </div>
-);
-
-export default AppLayout;
+  );
+}

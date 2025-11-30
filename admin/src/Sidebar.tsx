@@ -48,6 +48,14 @@ const Sidebar: React.FC = () => (
         Settings
       </NavLink>
     </nav>
+    <div>
+      <h2>Sidebar</h2>
+      <ul>
+        <li>Home</li>
+        <li>Profile</li>
+        <li>{/* This will throw an error */}</li>
+      </ul>
+    </div>
   </aside>
 );
 
