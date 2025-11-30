@@ -59,6 +59,7 @@ import RealTimeAnalytics from "./RealTimeAnalytics";
 import LanguageSelector from "./LanguageSelector";
 import LayoutEditor from "./LayoutEditor";
 import AIInsightsPlaceholder from "./AIInsightsPlaceholder";
+import MockAIModel from "./MockAIModel";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -200,6 +201,7 @@ export default function AppLayout() {
                   <LanguageSelector />
                   <LayoutEditor />
                   <AIInsightsPlaceholder />
+                  <MockAIModel />
                 </div>
               </main>
             </div>
