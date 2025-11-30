@@ -1,6 +1,6 @@
 import { Link as Logo } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import { useWallet } from "@/hooks/useWallet";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
