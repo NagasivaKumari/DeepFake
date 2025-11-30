@@ -35,6 +35,7 @@ import ContentModerationTools from "./ContentModerationTools";
 import IntegrationWithExternalServices from "./IntegrationWithExternalServices";
 import AdminOnboardingGuide from "./AdminOnboardingGuide";
 import AccessLogs from "./AccessLogs";
+import CustomizableEmailTemplates from "./CustomizableEmailTemplates";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -136,6 +137,7 @@ export default function AppLayout() {
               <IntegrationWithExternalServices />
               <AdminOnboardingGuide />
               <AccessLogs />
+              <CustomizableEmailTemplates />
             </div>
           </main>
         </div>
