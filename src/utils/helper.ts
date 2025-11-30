@@ -17,3 +17,8 @@ export const findMax = (numbers: number[]): number => {
 export const findMin = (numbers: number[]): number => {
     return Math.min(...numbers);
 };
+
+export const calculateAverage = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    return calculateSum(numbers) / numbers.length;
+};
