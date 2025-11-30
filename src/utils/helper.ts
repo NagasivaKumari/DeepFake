@@ -60,3 +60,10 @@ export const calculateGeometricMean = (numbers: number[]): number => {
     const product = calculateProduct(numbers);
     return Math.pow(product, 1 / numbers.length);
 };
+
+// Added a utility function to calculate the harmonic mean of an array of numbers
+export const calculateHarmonicMean = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const reciprocalSum = numbers.reduce((sum, num) => sum + 1 / num, 0);
+    return numbers.length / reciprocalSum;
+};
