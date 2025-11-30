@@ -8,17 +8,19 @@ import Settings from "./Settings";
 import MediaAdmin from "./MediaAdmin";
 import Dashboard from "./Dashboard"; // Importing the Dashboard component
 
+// Use React.memo to prevent unnecessary re-renders of AppLayout
+const MemoizedAppLayout = React.memo(AppLayout);
 
 const App = () => (
 	<BrowserRouter>
-		<AppLayout>
+		<MemoizedAppLayout>
 			<Routes>
 				<Route path="/" element={<Users />} />
 				<Route path="/media" element={<MediaAdmin />} />
 				<Route path="/settings" element={<Settings />} />
 				<Route path="/dashboard" element={<Dashboard />} /> // Added a new route for the admin dashboard
 			</Routes>
-		</AppLayout>
+		</MemoizedAppLayout>
 	</BrowserRouter>
 );
 
