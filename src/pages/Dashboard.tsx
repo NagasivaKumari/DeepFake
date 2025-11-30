@@ -52,6 +52,13 @@ export default function Dashboard() {
     initialData: []
   });
 
+  // Fetch total users data
+  const { data: usersData = [] } = useQuery({
+    queryKey: ['usersData'],
+    queryFn: () => storageClient.entities.User.list('-created_date', 10),
+    initialData: []
+  });
+
   useEffect(() => {
     if (!isConnected || !address) {
       setKycStatus(null);
@@ -97,6 +104,7 @@ export default function Dashboard() {
 
   const verifiedCount = registeredMedia.filter(m => m.status === 'verified').length;
   const totalRegistrations = registeredMedia.length;
+  const totalUsers = usersData.length; // Added a feature to display the total number of users in the dashboard
 
   // Added a feature to display the current date in the dashboard header
   const currentDate = new Date().toLocaleDateString();
