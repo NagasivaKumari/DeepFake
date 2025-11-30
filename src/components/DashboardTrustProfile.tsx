@@ -1,6 +1,23 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const DashboardTrustProfile = (props) => {
+const DashboardTrustProfile = () => {
+  const [reputationScore, setReputationScore] = useState(null);
+
+  useEffect(() => {
+    const fetchReputationScore = async () => {
+      try {
+        const response = await fetch("/api/reputation-score");
+        const data = await response.json();
+        setReputationScore(data.score);
+      } catch (error) {
+        console.error("Failed to fetch reputation score", error);
+      }
+    };
+
+    fetchReputationScore();
+  }, []);
+
   return (
     <section className="py-20 px-6">
       <div className="container mx-auto">
@@ -11,7 +28,7 @@ const DashboardTrustProfile = (props) => {
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div>
                 <div className="text-sm text-white/80 mb-2">Reputation Score</div>
-                <div className="text-4xl font-bold">{props.reputationScore || "N/A"}<span className="text-2xl text-white/80">/ 5.0</span></div>
+                <div className="text-4xl font-bold">{reputationScore !== null ? reputationScore : "N/A"}<span className="text-2xl text-white/80">/ 5.0</span></div>
               </div>
               <div>
                 <div className="text-sm text-white/80 mb-2">Verification Tier</div>
