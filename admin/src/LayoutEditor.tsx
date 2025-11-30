@@ -9,12 +9,25 @@ const saveToLocalStorage = (key, value) => {
   }
 };
 
+const loadFromLocalStorage = (key) => {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('Failed to load from local storage', error);
+    return null;
+  }
+};
+
 const LayoutEditor = () => {
-  const [widgets, setWidgets] = useState([
-    { id: '1', content: 'Widget 1' },
-    { id: '2', content: 'Widget 2' },
-    { id: '3', content: 'Widget 3' },
-  ]);
+  const [widgets, setWidgets] = useState(() => {
+    const savedWidgets = loadFromLocalStorage('dashboard-widgets');
+    return savedWidgets || [
+      { id: '1', content: 'Widget 1' },
+      { id: '2', content: 'Widget 2' },
+      { id: '3', content: 'Widget 3' },
+    ];
+  });
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
