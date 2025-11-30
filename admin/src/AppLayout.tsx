@@ -73,6 +73,7 @@ export default function AppLayout() {
   const [isBannerVisible, setBannerVisible] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setEmail(e.target.value);
@@ -85,9 +86,16 @@ export default function AppLayout() {
     console.log("Password updated");
   };
 
+  const toggleDarkMode = () => {
+    setDarkMode((prevMode) => !prevMode);
+  };
+
   return (
     <Router>
-      <div style={layoutStyle} className="app-layout">
+      <div
+        style={layoutStyle}
+        className={`app-layout ${darkMode ? "dark-mode" : ""}`}
+      >
         <Header />
         {isBannerVisible && (
           <div className="notification-banner">
