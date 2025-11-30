@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from .routes import media
 from .routes import auth
 from .routes import registrations
@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from fastapi.security import OAuth2PasswordBearer
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -73,6 +74,32 @@ app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(ai_generate.router)
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Mock function to decode token and retrieve user role
+def get_user_role(token: str = Depends(oauth2_scheme)):
+    # Replace this with actual token decoding logic
+    user_roles = {
+        "admin_token": "admin",
+        "editor_token": "editor",
+        "viewer_token": "viewer",
+    }
+    role = user_roles.get(token)
+    if not role:
+        raise HTTPException(status_code=403, detail="Invalid or missing role")
+    return role
+
+# Middleware to enforce role-based access
+async def role_required(required_role: str):
+    def role_checker(role: str = Depends(get_user_role)):
+        if role != required_role:
+            raise HTTPException(status_code=403, detail="Access denied")
+    return role_checker
+
+# Example usage in an endpoint
+@app.get("/admin/protected")
+async def protected_endpoint(role: str = Depends(role_required("admin"))):
+    return {"message": "Welcome, admin!"}
 
 @app.get("/health")
 @limiter.limit("5/minute")
