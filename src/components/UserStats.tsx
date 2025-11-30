@@ -11,6 +11,10 @@ const UserStats = () => {
         return ((stats.activeUsers / stats.totalUsers) * 100).toFixed(2);
     };
 
+    const calculateInactivePercentage = () => {
+        return ((stats.inactiveUsers / stats.totalUsers) * 100).toFixed(2);
+    };
+
     return (
         <div>
             <h2>User Statistics</h2>
@@ -19,6 +23,7 @@ const UserStats = () => {
                 <li>Active Users: {stats.activeUsers}</li>
                 <li>Inactive Users: {stats.inactiveUsers}</li>
                 <li>Active Percentage: {calculateActivePercentage()}%</li>
+                <li>Inactive Percentage: {calculateInactivePercentage()}%</li>
             </ul>
             <p>Last updated: {new Date().toLocaleString()}</p>
         </div>
