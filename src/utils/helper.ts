@@ -219,3 +219,12 @@ export const calculateQuadraticMean = (numbers: number[]): number => {
     const squareSum = numbers.reduce((sum, num) => sum + Math.pow(num, 2), 0);
     return Math.sqrt(squareSum / numbers.length);
 };
+
+// Added a utility function to calculate the trimmed variance of an array of numbers
+export const calculateTrimmedVariance = (numbers: number[], trimPercent: number): number => {
+    if (numbers.length === 0 || trimPercent < 0 || trimPercent > 50) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const trimCount = Math.floor((trimPercent / 100) * sorted.length);
+    const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+    return calculateVariance(trimmed);
+};
