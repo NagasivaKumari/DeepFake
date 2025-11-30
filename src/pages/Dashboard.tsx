@@ -98,6 +98,9 @@ export default function Dashboard() {
   const verifiedCount = registeredMedia.filter(m => m.status === 'verified').length;
   const totalRegistrations = registeredMedia.length;
 
+  // Added a feature to display the current date in the dashboard header
+  const currentDate = new Date().toLocaleDateString();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
