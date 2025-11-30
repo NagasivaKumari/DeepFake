@@ -50,6 +50,7 @@ import MultiTenantSupport from "./MultiTenantSupport";
 import CustomReports from "./CustomReports";
 import PaymentGatewayIntegration from "./PaymentGatewayIntegration";
 import UserActivityTracker from "./UserActivityTracker";
+import NotificationSettings from "./NotificationSettings";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -169,6 +170,7 @@ export default function AppLayout() {
               <CustomReports />
               <PaymentGatewayIntegration />
               <UserActivityTracker />
+              <NotificationSettings />
             </div>
           </main>
         </div>
