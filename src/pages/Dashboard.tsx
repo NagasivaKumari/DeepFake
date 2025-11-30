@@ -154,6 +154,7 @@ export default function Dashboard() {
 
       {/* Stats Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        {/* This section displays key statistics about the platform, such as total registrations and verified items. */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard
             icon={FileCheck}
