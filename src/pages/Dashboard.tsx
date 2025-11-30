@@ -474,3 +474,111 @@ export default function Dashboard() {
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
             Frequently Asked Questions
           </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Find answers to common questions about our platform
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">What is decentralized content verification?</h3>
+            <p className="text-gray-700">Decentralized content verification ensures that your content's authenticity can be proven using blockchain technology, making it immutable and trustworthy.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">How do I register my content?</h3>
+            <p className="text-gray-700">You can register your content by uploading it through the "Register Media" page. Our platform will generate cryptographic hashes and store them on the blockchain.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">Is my data secure?</h3>
+            <p className="text-gray-700">Yes, your data is stored securely using decentralized storage solutions like IPFS, ensuring privacy and reliability.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Community Highlights Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Community Highlights
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Discover the amazing work being done by our community members
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Featured Creator: Jane Doe</h3>
+            <p className="text-gray-700">Jane has successfully registered over 500 media items, setting a benchmark for content authenticity.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Top Verified Media</h3>
+            <p className="text-gray-700">"AI-Generated Art Collection" by John Smith has received widespread acclaim for its originality and authenticity.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Community Milestone</h3>
+            <p className="text-gray-700">Our community has collectively verified over 10,000 media items, ensuring trust and transparency.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Tips for Using the Platform Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Tips for Using the Platform
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Maximize your experience with these helpful tips
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">Keep Your Profile Updated</h3>
+            <p className="text-gray-700">Ensure your profile information is accurate to build trust and credibility within the community.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">Verify Content Regularly</h3>
+            <p className="text-gray-700">Make it a habit to verify your content to maintain its authenticity and integrity.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-bold text-gray-900">Engage with the Community</h3>
+            <p className="text-gray-700">Participate in discussions and share your insights to grow your network and reputation.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Security Features Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Platform Security Features
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Learn about the measures we take to keep your data secure
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900">End-to-End Encryption</h3>
+            <p className="text-gray-700">All data transfers are secured with industry-standard encryption protocols.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900">Decentralized Storage</h3>
+            <p className="text-gray-700">Your content is stored on IPFS, ensuring redundancy and reliability.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900">Blockchain Verification</h3>
+            <p className="text-gray-700">Every transaction is recorded on the blockchain, providing transparency and immutability.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900">Regular Security Audits</h3>
+            <p className="text-gray-700">Our platform undergoes frequent security reviews to identify and mitigate risks.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
