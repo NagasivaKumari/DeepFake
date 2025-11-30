@@ -47,3 +47,9 @@ export const calculateRange = (numbers: number[]): number => {
     if (numbers.length === 0) return 0;
     return Math.max(...numbers) - Math.min(...numbers);
 };
+
+// Added a utility function to calculate the product of an array of numbers
+export const calculateProduct = (numbers: number[]): number => {
+    if (numbers.length === 0) return 1;
+    return numbers.reduce((product, num) => product * num, 1);
+};
