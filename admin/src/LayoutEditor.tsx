@@ -40,6 +40,16 @@ const LayoutEditor = () => {
     saveToLocalStorage('dashboard-widgets', reorderedWidgets);
   };
 
+  const resetToDefaultLayout = () => {
+    const defaultWidgets = [
+      { id: '1', content: 'Widget 1' },
+      { id: '2', content: 'Widget 2' },
+      { id: '3', content: 'Widget 3' },
+    ];
+    setWidgets(defaultWidgets);
+    saveToLocalStorage('dashboard-widgets', defaultWidgets);
+  };
+
   useEffect(() => {
     saveToLocalStorage('dashboard-widgets', widgets);
   }, [widgets]);
@@ -48,6 +58,9 @@ const LayoutEditor = () => {
     <div className="layout-editor">
       <h2>Layout Editor</h2>
       <p>Drag and drop widgets to customize your dashboard layout.</p>
+      <button onClick={resetToDefaultLayout} style={{ marginBottom: '10px' }}>
+        Reset to Default Layout
+      </button>
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="widgets">
           {(provided) => (
