@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from .websocket import app as websocket_app
+from .activity_logs import app as activity_logs_app
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -77,6 +78,9 @@ app.include_router(ai_generate.router)
 
 # Include WebSocket routes
 app.mount("/websocket", websocket_app)
+
+# Include Activity Logs routes
+app.mount("/activity_logs", activity_logs_app)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

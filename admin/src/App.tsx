@@ -8,12 +8,18 @@ import Settings from "./Settings";
 import MediaAdmin from "./MediaAdmin";
 import Dashboard from "./Dashboard"; // Importing the Dashboard component
 import { useWebSocket } from "./hooks/useWebSocket";
+import { useActivityLogs } from "./hooks/useActivityLogs";
 
 // Use React.memo to prevent unnecessary re-renders of AppLayout
 const MemoizedAppLayout = React.memo(AppLayout);
 
 const App = () => {
 	const { messages, sendMessage } = useWebSocket("ws://localhost:8000/websocket/ws");
+	const { logs, logActivity } = useActivityLogs();
+
+	const handleLogActivity = () => {
+		logActivity("User1", "Clicked Button");
+	};
 
 	return (
 		<BrowserRouter>
@@ -30,6 +36,15 @@ const App = () => {
 					<ul>
 						{messages.map((msg, index) => (
 							<li key={index}>{msg}</li>
+						))}
+					</ul>
+				</div>
+				<div>
+					<h1>User Activity Logs</h1>
+					<button onClick={handleLogActivity}>Log Activity</button>
+					<ul>
+						{logs.map((log, index) => (
+							<li key={index}>{`${log.timestamp} - ${log.user}: ${log.action}`}</li>
 						))}
 					</ul>
 				</div>
