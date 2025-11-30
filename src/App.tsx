@@ -19,6 +19,7 @@ import FAQ from "./pages/FAQ";
 import KycPage from "./pages/KycPage";
 import NotFound from "./pages/NotFound";
 import TwoFactorAuthSetup from "./components/TwoFactorAuthSetup";
+import { addNumbers, isEven, generateRandomNumber } from './utils/dummyUtils';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,10 @@ const App = () => {
   useSyncOnReconnect(syncData);
 
   const isOnline = useNetworkStatus();
+
+  const randomNum = generateRandomNumber(1, 100);
+  const sum = addNumbers(10, 20);
+  const evenCheck = isEven(randomNum);
 
   return (
     <QueryClientProvider client={queryClient}>
