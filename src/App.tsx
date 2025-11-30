@@ -22,6 +22,7 @@ import TwoFactorAuthSetup from "./components/TwoFactorAuthSetup";
 import { addNumbers, isEven, generateRandomNumber } from './utils/dummyUtils';
 import { factorial, gcd, isPrime } from './utils/mathUtils';
 import { reverseString, capitalizeWords, isPalindrome } from './utils/stringUtils';
+import { login, logout, fetchUserProfile } from './api/authClient';
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,33 @@ const App = () => {
   const reversed = reverseString(sampleString);
   const capitalized = capitalizeWords(sampleString);
   const palindromeCheck = isPalindrome("madam");
+
+  const handleLogin = async () => {
+    try {
+      const user = await login('testUser', 'password123');
+      console.log('Logged in user:', user);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      console.log('User logged out');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleFetchProfile = async () => {
+    try {
+      const profile = await fetchUserProfile();
+      console.log('User profile:', profile);
+    } catch (error) {
+      console.error('Fetch profile error:', error);
+    }
+  };
 
   return (
     <QueryClientProvider client={queryClient}>
