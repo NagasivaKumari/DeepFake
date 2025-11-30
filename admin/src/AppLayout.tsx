@@ -18,6 +18,7 @@ import TwoFactorAuthentication from "./TwoFactorAuthentication";
 import UserFeedbackSupport from "./UserFeedbackSupport";
 import AdvancedAnalyticsDashboard from "./AdvancedAnalyticsDashboard";
 import AuditLogExport from "./AuditLogExport";
+import CustomThemes from "./CustomThemes";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -102,6 +103,7 @@ export default function AppLayout() {
               <TwoFactorAuthentication />
               <UserFeedbackSupport />
               <AdvancedAnalyticsDashboard />
+              <CustomThemes />
             </div>
           </main>
         </div>
@@ -124,6 +126,7 @@ export default function AppLayout() {
         </footer>
         <Routes>
           <Route path="/audit-log-export" element={<AuditLogExport />} />
+          <Route path="/custom-themes" element={<CustomThemes />} />
         </Routes>
       </div>
     </Router>
