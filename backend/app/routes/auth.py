@@ -13,12 +13,21 @@ import uuid
 import json
 from pathlib import Path
 import random
+from cryptography.fernet import Fernet
+import os
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data"
 DATA_PATH.mkdir(parents=True, exist_ok=True)
 KYC_FILE = DATA_PATH / "kyc.json"
+
+# Load encryption key from environment variable
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    raise RuntimeError("ENCRYPTION_KEY environment variable is not set.")
+
+encryptor = Fernet(ENCRYPTION_KEY)
 
 from fastapi import Query
 
@@ -45,12 +54,21 @@ import uuid
 import json
 from pathlib import Path
 import random
+from cryptography.fernet import Fernet
+import os
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data"
 DATA_PATH.mkdir(parents=True, exist_ok=True)
 KYC_FILE = DATA_PATH / "kyc.json"
+
+# Load encryption key from environment variable
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    raise RuntimeError("ENCRYPTION_KEY environment variable is not set.")
+
+encryptor = Fernet(ENCRYPTION_KEY)
 
 from fastapi import Query
 @router.get("/kyc/status")
@@ -87,14 +105,20 @@ def load_kyc():
     if not KYC_FILE.exists():
         return {}
     try:
-        return json.loads(KYC_FILE.read_text())
-    except Exception:
+        encrypted_data = KYC_FILE.read_text()
+        decrypted_data = encryptor.decrypt(encrypted_data.encode()).decode()
+        return json.loads(decrypted_data)
+    except Exception as e:
+        print(f"Failed to load KYC data: {e}")
         return {}
 
-
 def save_kyc(data):
-    KYC_FILE.write_text(json.dumps(data, indent=2))
-
+    try:
+        json_data = json.dumps(data, indent=2)
+        encrypted_data = encryptor.encrypt(json_data.encode()).decode()
+        KYC_FILE.write_text(encrypted_data)
+    except Exception as e:
+        print(f"Failed to save KYC data: {e}")
 
 @router.post("/kyc/start", response_model=KYCRecord)
 def start_kyc(payload: KYCStartRequest, request: Request):
