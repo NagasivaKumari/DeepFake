@@ -7,6 +7,7 @@ import Users from "./Users";
 import Settings from "./Settings";
 import MediaAdmin from "./MediaAdmin";
 import Dashboard from "./Dashboard"; // Importing the Dashboard component
+import AnalyticsDashboard from "./AnalyticsDashboard";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useActivityLogs } from "./hooks/useActivityLogs";
 
@@ -48,6 +49,7 @@ const App = () => {
 						))}
 					</ul>
 				</div>
+				<AnalyticsDashboard />
 			</MemoizedAppLayout>
 		</BrowserRouter>
 	);
