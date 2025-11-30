@@ -52,8 +52,8 @@ const Dashboard = () => {
 
   return (
     <div>
-      <h1>Admin Dashboard</h1>
-      <p>Welcome to the admin dashboard. Here you can manage users, media, and settings.</p>
+      <h1 style={{ color: "white" }}>Admin Dashboard</h1>
+      <p style={{ color: "white" }}>Welcome to the admin dashboard. Here you can manage users, media, and settings.</p>
       <div className="stats-section">
         {stats.map((stat, index) => (
           <StatsCard
@@ -65,7 +65,7 @@ const Dashboard = () => {
         ))}
       </div>
       <div className="recent-activities-section">
-        <h2>Recent Activities</h2>
+        <h2 style={{ color: "white" }}>Recent Activities</h2>
         <RecentActivities />
       </div>
       <div className="action-buttons">
