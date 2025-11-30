@@ -24,6 +24,8 @@ import { factorial, gcd, isPrime } from './utils/mathUtils';
 import { reverseString, capitalizeWords, isPalindrome } from './utils/stringUtils';
 import { login, logout, fetchUserProfile } from './api/authClient';
 import UserProfile from './components/UserProfile';
+import PostList from './components/PostList';
+import AnalyticsPage from "./pages/AnalyticsPage";
 
 const queryClient = new QueryClient();
 
@@ -100,11 +102,14 @@ const App = () => {
               <Route path="/trust-graph" element={<TrustGraph />} />
               <Route path="/docs" element={<DeveloperDocs />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
             <TwoFactorAuthSetup />
             <UserProfile />
+            <PostList role="user" />
+            <PostList role="admin" />
           </BrowserRouter>
         </WalletProvider>
       </TooltipProvider>
