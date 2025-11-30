@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+
+const saveToLocalStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error('Failed to save to local storage', error);
+  }
+};
 
 const LayoutEditor = () => {
   const [widgets, setWidgets] = useState([
@@ -16,7 +24,12 @@ const LayoutEditor = () => {
     reorderedWidgets.splice(result.destination.index, 0, removed);
 
     setWidgets(reorderedWidgets);
+    saveToLocalStorage('dashboard-widgets', reorderedWidgets);
   };
+
+  useEffect(() => {
+    saveToLocalStorage('dashboard-widgets', widgets);
+  }, [widgets]);
 
   return (
     <div className="layout-editor">
