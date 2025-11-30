@@ -1,51 +1,42 @@
 import React, { useState } from 'react';
 import Fuse from 'fuse.js';
 
-interface SearchItem {
-  id: number;
-  name: string;
-  type: string;
-}
-
-const sampleData: SearchItem[] = [
-  { id: 1, name: 'John Doe', type: 'User' },
-  { id: 2, name: 'Jane Smith', type: 'User' },
-  { id: 3, name: 'Sample Media', type: 'Media' },
-  { id: 4, name: 'Test Log', type: 'Log' },
-];
-
-// AdvancedSearch component allows users to search for users, media, or logs.
-// It uses Fuse.js for fuzzy searching and displays results dynamically.
-const AdvancedSearch: React.FC = () => {
+const AdvancedSearch = ({ data }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchItem[]>([]);
+  const [results, setResults] = useState(data);
 
-  const fuse = new Fuse(sampleData, {
-    keys: ['name', 'type'],
-    threshold: 0.3,
+  // Fuse.js options for dynamic searching
+  const fuse = new Fuse(data, {
+    keys: ['name', 'type'], // Fields to search in
+    threshold: 0.3, // Adjust sensitivity
   });
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = (e) => {
     const searchQuery = e.target.value;
     setQuery(searchQuery);
-    const searchResults = fuse.search(searchQuery).map((result) => result.item);
-    setResults(searchResults);
+
+    if (searchQuery.trim() === '') {
+      setResults(data); // Reset to original data if query is empty
+    } else {
+      const searchResults = fuse.search(searchQuery).map((result) => result.item);
+      setResults(searchResults);
+    }
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 rounded shadow">
+    <div className="advanced-search p-4 bg-white dark:bg-gray-800 rounded shadow">
       <h2 className="text-xl font-bold mb-4">Advanced Search</h2>
       <input
         type="text"
         value={query}
         onChange={handleSearch}
-        placeholder="Search users, media, or logs..."
+        placeholder="Search by name or type..."
         className="w-full p-2 border rounded mb-4"
       />
       <ul>
         {results.map((item) => (
           <li key={item.id} className="mb-2">
-            <span className="font-bold">{item.name}</span> ({item.type})
+            <strong className="font-bold">{item.name}</strong> - {item.type}
           </li>
         ))}
       </ul>

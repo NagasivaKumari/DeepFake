@@ -1,5 +1,5 @@
 import React from "react";
-import StatsCard from "./StatsCard"; // Importing a hypothetical StatsCard component
+import StatsCard from "../../src/components/dashboard/StatsCard";
 import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
 import Button from "./Button"; // Importing a hypothetical Button component
 import NotificationPanel from "./NotificationPanel"; // Importing a hypothetical NotificationPanel component
@@ -24,8 +24,8 @@ import AdminUserManagement from "./AdminUserManagement"; // Importing a hypothet
 import AdminNotificationSettings from "./AdminNotificationSettings"; // Importing a hypothetical AdminNotificationSettings component
 import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
 import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
-import { sendSlackNotification } from "../utils/slackNotifications";
-import { triggerZapierWebhook } from "../utils/zapierIntegration";
+import { sendSlackNotification } from "../../src/utils/slackNotifications";
+import { triggerZapierWebhook } from "../../src/utils/zapierIntegration";
 
 const Dashboard = () => {
   // Added a section to display admin statistics

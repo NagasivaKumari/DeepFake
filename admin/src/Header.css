@@ -1,1 +1,32 @@
-Added a new CSS file to handle responsive styles for the Header component, including media queries for small screens.
+/* Styles for the Header component */
+
+/* Example responsive styles */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f8f9fa;
+}
+
+.header .logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.header .nav {
+  display: flex;
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header .nav {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
