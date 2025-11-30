@@ -4,6 +4,9 @@ import RecentActivities from "./RecentActivities"; // Importing a hypothetical R
 import Button from "./Button"; // Importing a hypothetical Button component
 import NotificationPanel from "./NotificationPanel"; // Importing a hypothetical NotificationPanel component
 import TaskManager from "./TaskManager"; // Importing a hypothetical TaskManager component
+import PerformanceChart from "./PerformanceChart"; // Importing a hypothetical PerformanceChart component
+import FeedbackForm from "./FeedbackForm"; // Importing a hypothetical FeedbackForm component
+import SystemLogs from "./SystemLogs"; // Importing a hypothetical SystemLogs component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -37,6 +40,15 @@ const Dashboard = () => {
       </div>
       <div className="task-manager">
         <TaskManager />
+      </div>
+      <div className="performance-chart">
+        <PerformanceChart />
+      </div>
+      <div className="feedback-form">
+        <FeedbackForm />
+      </div>
+      <div className="system-logs">
+        <SystemLogs />
       </div>
     </div>
   );
