@@ -10,10 +10,12 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from .websocket import app as websocket_app
 from .activity_logs import app as activity_logs_app
+from slowapi.middleware import SlowAPIMiddleware
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -44,6 +46,7 @@ async def log_exceptions(request, exc):
 # Initialize the rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 # Add rate limit exception handler
 @app.exception_handler(RateLimitExceeded)
@@ -70,6 +73,9 @@ app.add_middleware(
 
 # Add HTTPS enforcement middleware
 app.add_middleware(HTTPSRedirectMiddleware)
+
+# Restrict allowed hosts
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com", "*.example.com"])
 
 app.include_router(registrations.router)
 app.include_router(media.router)
@@ -113,3 +119,8 @@ async def protected_endpoint(role: str = Depends(role_required("admin"))):
 @limiter.limit("5/minute")
 def health():
     return {"status": "ok"}
+
+@app.get("/secure-endpoint")
+@limiter.limit("5/minute")
+async def secure_endpoint():
+    return {"message": "This endpoint is rate-limited."}
