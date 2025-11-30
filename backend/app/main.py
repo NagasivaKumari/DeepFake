@@ -3,6 +3,7 @@ from .routes import media
 from .routes import auth
 from .routes import registrations
 from .routes import ai_generate
+from .routes import analytics
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -91,6 +92,7 @@ app.include_router(registrations.router)
 app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(ai_generate.router)
+app.include_router(analytics.router)
 app.include_router(user_stats_router)
 
 # Include WebSocket routes
