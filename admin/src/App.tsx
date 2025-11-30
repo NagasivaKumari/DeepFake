@@ -6,6 +6,7 @@ import KycAdmin from "./KycAdmin";
 import Users from "./Users";
 import Settings from "./Settings";
 import MediaAdmin from "./MediaAdmin";
+import Dashboard from "./Dashboard"; // Importing the Dashboard component
 
 
 const App = () => (
@@ -15,6 +16,7 @@ const App = () => (
 				<Route path="/" element={<Users />} />
 				<Route path="/media" element={<MediaAdmin />} />
 				<Route path="/settings" element={<Settings />} />
+				<Route path="/dashboard" element={<Dashboard />} /> // Added a new route for the admin dashboard
 			</Routes>
 		</AppLayout>
 	</BrowserRouter>
