@@ -118,6 +118,9 @@ export default function Dashboard() {
   };
   const greetingMessage = getGreeting();
 
+  // Added a feature to highlight the most active user in the dashboard
+  const mostActiveUser = usersData.reduce((prev, current) => (prev.activityCount > current.activityCount ? prev : current), usersData[0]);
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
