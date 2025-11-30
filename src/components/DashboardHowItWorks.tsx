@@ -1,29 +1,26 @@
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 const DashboardHowItWorks = () => {
-  const steps = [
-    {
-      number: "01",
-      icon: "bg-blue-500",
-      title: "Register Media",
-      description: "Upload your AI-generated content with metadata. We create cryptographic hashes and store immutable records on the blockchain.",
-      link: true
-    },
-    {
-      number: "02",
-      icon: "bg-green-500",
-      title: "Blockchain Attestation",
-      description: "Your content is signed with your DID and registered on Ethereum. IPFS ensures decentralized, permanent storage.",
-      link: false
-    },
-    {
-      number: "03",
-      icon: "bg-purple-500",
-      title: "Verify Anywhere",
-      description: "Anyone can verify your content's authenticity by comparing cryptographic hashes. Build trust with verifiable provenance.",
-      link: true
-    }
-  ];
+  const [steps, setSteps] = useState([
+    { number: "01", icon: "bg-blue-500", title: "Loading...", description: "Fetching data...", link: false },
+    { number: "02", icon: "bg-green-500", title: "Loading...", description: "Fetching data...", link: false },
+    { number: "03", icon: "bg-purple-500", title: "Loading...", description: "Fetching data...", link: false },
+  ]);
+
+  useEffect(() => {
+    const fetchSteps = async () => {
+      try {
+        const response = await axios.get("/api/how-it-works");
+        setSteps(response.data);
+      } catch (error) {
+        console.error("Failed to fetch steps:", error);
+      }
+    };
+
+    fetchSteps();
+  }, []);
 
   return (
     <section className="py-20 px-6">
@@ -32,7 +29,7 @@ const DashboardHowItWorks = () => {
           <h2 className="text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-muted-foreground">Three simple steps to protect and verify your digital content</p>
         </div>
-        
+
         <div className="grid md:grid-cols-3 gap-8">
           {steps.map((step) => (
             <div key={step.number} className="relative">
