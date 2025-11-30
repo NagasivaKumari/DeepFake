@@ -101,6 +101,15 @@ export default function Dashboard() {
   // Added a feature to display the current date in the dashboard header
   const currentDate = new Date().toLocaleDateString();
 
+  // Added a feature to show a greeting message based on the time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+  const greetingMessage = getGreeting();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
