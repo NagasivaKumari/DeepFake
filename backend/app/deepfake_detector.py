@@ -60,23 +60,17 @@ def _fetch_image_bytes(url: str, timeout: int = 15) -> Optional[bytes]:
         return None
 
 
-def analyze_image_from_url(url: str, fallback_hint: Optional[Dict] = None) -> Dict:
-    """Analyze an image at a URL and return a dictionary:
-
-    { available: bool, method: 'model'|'heuristic'|'none', ml_score: float|None }
-
-    ml_score is a forgery likelihood in [0,1] where 1.0 is very likely forged.
-    """
+def analyze_image_from_url(url: str) -> Dict:
+    """Analyze an image at a URL using the model only."""
     result = {"available": False, "method": "none", "ml_score": None}
     img_bytes = _fetch_image_bytes(url)
     if not img_bytes:
         return result
     result["available"] = True
 
-    # If a real model is available, try to use it
+    # Use the model for analysis
     if MODEL_AVAILABLE and MODEL is not None:
         try:
-            # Expect the model package to provide `predict_bytes` returning 0..1
             if hasattr(MODEL, "predict_bytes"):
                 score = float(MODEL.predict_bytes(img_bytes))
             elif hasattr(MODEL, "predict"):
@@ -91,28 +85,7 @@ def analyze_image_from_url(url: str, fallback_hint: Optional[Dict] = None) -> Di
         except Exception as e:
             logger.exception(f"Model prediction failed: {e}")
 
-    # Heuristic fallback: use hints when available (perceptual_hash, duplicate signers)
-    # fallback_hint: { "perceptual_hash": str, "duplicate_signers": int }
-    dup_score = 0.0
-    ph_score = 0.0
-    if fallback_hint:
-        try:
-            dup = int(fallback_hint.get("duplicate_signers") or 0)
-            # If many different signers have same content, suspicious (scale 0..1)
-            dup_score = min(1.0, max(0.0, (dup - 1) / 4.0))
-        except Exception:
-            dup_score = 0.0
-        try:
-            ph = fallback_hint.get("perceptual_hash")
-            if ph and isinstance(ph, str) and len(ph) > 8:
-                # presence of perceptual hash indicates some processing; give small positive
-                ph_score = 0.1
-        except Exception:
-            ph_score = 0.0
-
-    # Heuristic combined score (favoring duplicates as stronger signal)
-    heuristic = min(1.0, dup_score * 0.7 + ph_score * 0.3)
-    result.update({"method": "heuristic", "ml_score": heuristic})
+    # If model fails, return no analysis
     return result
 
 
@@ -138,10 +111,4 @@ def analyze_media_record(record: Dict, gateway_base: Optional[str] = None, media
     else:
         url = f"https://gateway.pinata.cloud/ipfs/{cid}"
 
-    hint = {}
-    if record.get("perceptual_hash"):
-        hint["perceptual_hash"] = record.get("perceptual_hash")
-    if media_group and isinstance(media_group, dict):
-        hint["duplicate_signers"] = media_group.get("distinct_signers", 1)
-
-    return analyze_image_from_url(url, fallback_hint=hint)
+    return analyze_image_from_url(url)
