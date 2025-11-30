@@ -129,3 +129,11 @@ export const calculatePercentile = (numbers: number[], value: number): number =>
     const rank = sorted.filter(num => num < value).length;
     return (rank / sorted.length) * 100;
 };
+
+// Added a utility function to calculate the z-score of a value in an array
+export const calculateZScore = (numbers: number[], value: number): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    const stdDev = calculateStandardDeviation(numbers);
+    return (value - avg) / stdDev;
+};
