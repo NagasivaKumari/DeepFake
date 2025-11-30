@@ -28,6 +28,7 @@ export default function Dashboard() {
   const { isConnected, address } = useWallet();
   const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [kycLoading, setKycLoading] = useState(false);
+  const [activities, setActivities] = useState<string[]>([]);
   const navigate = useNavigate();
 
   // Fetch reputationScore dynamically
@@ -72,6 +73,22 @@ export default function Dashboard() {
       })
       .finally(() => setKycLoading(false));
   }, [isConnected, address, navigate]);
+
+  useEffect(() => {
+    // Simulate fetching recent activities
+    const fetchActivities = async () => {
+      const recentActivities = await new Promise<string[]>((resolve) =>
+        setTimeout(() => resolve([
+          'User1 registered a new media.',
+          'User2 verified a media.',
+          'User3 updated their profile.'
+        ]), 1000)
+      );
+      setActivities(recentActivities);
+    };
+
+    fetchActivities();
+  }, []);
 
   if (!isConnected || kycLoading || kycStatus !== "approved") {
     // Render header and a loading/redirect message so layout is not broken
@@ -300,6 +317,35 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+      </section>
+
+      {/* Recent Activities Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Recent Activities
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Stay updated with the latest activities on the platform
+          </p>
+        </div>
+
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <ul className="space-y-4">
+            {activities.length === 0 ? (
+              <li className="text-center text-gray-500 py-4">No recent activities found.</li>
+            ) : (
+              activities.map((activity, index) => (
+                <li key={index} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-gray-700">{activity}</p>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
       </section>
     </div>
   );
