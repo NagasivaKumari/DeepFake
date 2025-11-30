@@ -6,6 +6,10 @@ const AIPoweredInsights = () => {
     { id: 2, title: 'Content Recommendation', description: 'Recommend video tutorials to new users for better engagement.' },
   ]);
 
+  // Add a new insight for predictive analytics
+  const newInsight = { id: 3, title: 'Revenue Forecast', description: 'Projected revenue increase of 15% next quarter.' };
+  setInsights((prev) => [...prev, newInsight]);
+
   return (
     <div>
       <h2>AI-Powered Insights</h2>
