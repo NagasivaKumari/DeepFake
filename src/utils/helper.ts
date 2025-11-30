@@ -197,3 +197,11 @@ export const calculateHarmonicStandardDeviation = (numbers: number[]): number =>
     const reciprocalMean = calculateAverage(reciprocalNumbers);
     return 1 / reciprocalMean;
 };
+
+// Added a utility function to calculate the relative standard deviation of an array of numbers
+export const calculateRelativeStandardDeviation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const stdDev = calculateStandardDeviation(numbers);
+    const avg = calculateAverage(numbers);
+    return avg === 0 ? 0 : (stdDev / avg) * 100;
+};
