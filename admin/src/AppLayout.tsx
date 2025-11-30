@@ -49,6 +49,7 @@ import RoleBasedAccessControl from "./RoleBasedAccessControl";
 import MultiTenantSupport from "./MultiTenantSupport";
 import CustomReports from "./CustomReports";
 import PaymentGatewayIntegration from "./PaymentGatewayIntegration";
+import UserActivityTracker from "./UserActivityTracker";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -167,6 +168,7 @@ export default function AppLayout() {
               <MultiTenantSupport />
               <CustomReports />
               <PaymentGatewayIntegration />
+              <UserActivityTracker />
             </div>
           </main>
         </div>
