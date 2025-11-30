@@ -137,3 +137,13 @@ export const calculateZScore = (numbers: number[], value: number): number => {
     const stdDev = calculateStandardDeviation(numbers);
     return (value - avg) / stdDev;
 };
+
+// Added a utility function to calculate the skewness of an array of numbers
+export const calculateSkewness = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    const stdDev = calculateStandardDeviation(numbers);
+    const n = numbers.length;
+    const skewness = numbers.reduce((sum, num) => sum + Math.pow((num - avg) / stdDev, 3), 0) / n;
+    return skewness;
+};
