@@ -51,6 +51,7 @@ import CustomReports from "./CustomReports";
 import PaymentGatewayIntegration from "./PaymentGatewayIntegration";
 import UserActivityTracker from "./UserActivityTracker";
 import NotificationSettings from "./NotificationSettings";
+import AdvancedSearch from "./AdvancedSearch";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -171,6 +172,7 @@ export default function AppLayout() {
               <PaymentGatewayIntegration />
               <UserActivityTracker />
               <NotificationSettings />
+              <AdvancedSearch />
             </div>
           </main>
         </div>
