@@ -6,6 +6,10 @@ from .routes import ai_generate
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -33,6 +37,18 @@ async def log_exceptions(request, exc):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return await app.default_exception_handler(request, exc)
 
+# Initialize the rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Add rate limit exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please try again later."},
+    )
+
 app.add_middleware(
     CORSMiddleware,
     # Allow common local dev origins. Add any additional dev origins (e.g. Vite at :5175) as needed.
@@ -57,5 +73,6 @@ app.include_router(ai_generate.router)
 
 
 @app.get("/health")
+@limiter.limit("5/minute")
 def health():
     return {"status": "ok"}
