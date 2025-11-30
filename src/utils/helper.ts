@@ -212,3 +212,10 @@ export const calculateRootMeanSquare = (numbers: number[]): number => {
     const squareSum = numbers.reduce((sum, num) => sum + Math.pow(num, 2), 0);
     return Math.sqrt(squareSum / numbers.length);
 };
+
+// Added a utility function to calculate the quadratic mean of an array of numbers
+export const calculateQuadraticMean = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const squareSum = numbers.reduce((sum, num) => sum + Math.pow(num, 2), 0);
+    return Math.sqrt(squareSum / numbers.length);
+};
