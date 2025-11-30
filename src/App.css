@@ -40,3 +40,32 @@
 .read-the-docs {
   color: #888;
 }
+
+/*
+  Add responsive styles for the layout.
+  Use CSS media queries to adjust the layout for different screen sizes.
+*/
+
+/* Example: Adjust the sidebar and main content layout */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    margin: 0;
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar {
+    display: block;
+    width: 250px;
+  }
+
+  .main-content {
+    margin-left: 250px;
+    padding: 2rem;
+  }
+}
