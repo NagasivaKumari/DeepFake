@@ -20,6 +20,7 @@ import AdvancedAnalyticsDashboard from "./AdvancedAnalyticsDashboard";
 import AuditLogExport from "./AuditLogExport";
 import CustomThemes from "./CustomThemes";
 import MultiLanguageSupport from "./MultiLanguageSupport";
+import AdminCollaborationTools from "./AdminCollaborationTools";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -106,6 +107,7 @@ export default function AppLayout() {
               <AdvancedAnalyticsDashboard />
               <CustomThemes />
               <MultiLanguageSupport />
+              <AdminCollaborationTools />
             </div>
           </main>
         </div>
@@ -132,6 +134,10 @@ export default function AppLayout() {
           <Route
             path="/multi-language-support"
             element={<MultiLanguageSupport />}
+          />
+          <Route
+            path="/admin-collaboration-tools"
+            element={<AdminCollaborationTools />}
           />
         </Routes>
       </div>
