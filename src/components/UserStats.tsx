@@ -15,6 +15,7 @@ const UserStats = () => {
                 <li>Active Users: {stats.activeUsers}</li>
                 <li>Inactive Users: {stats.inactiveUsers}</li>
             </ul>
+            <p>Last updated: {new Date().toLocaleString()}</p>
         </div>
     );
 };
