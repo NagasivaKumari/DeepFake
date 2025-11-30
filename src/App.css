@@ -56,6 +56,11 @@
     margin: 0;
     padding: 1rem;
   }
+
+  .footer {
+    text-align: center;
+    padding: 1rem;
+  }
 }
 
 @media (min-width: 769px) {
@@ -66,6 +71,11 @@
 
   .main-content {
     margin-left: 250px;
+    padding: 2rem;
+  }
+
+  .footer {
+    text-align: left;
     padding: 2rem;
   }
 }
