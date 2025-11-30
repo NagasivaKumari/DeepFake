@@ -165,3 +165,11 @@ export const calculateRangeRatio = (numbers: number[]): number => {
     const max = Math.max(...numbers);
     return max === 0 ? 0 : range / max;
 };
+
+// Added a utility function to calculate the coefficient of variation of an array of numbers
+export const calculateCoefficientOfVariation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    const stdDev = calculateStandardDeviation(numbers);
+    return avg === 0 ? 0 : (stdDev / avg) * 100;
+};
