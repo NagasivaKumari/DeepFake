@@ -417,6 +417,33 @@ export default function Dashboard() {
           </ul>
         </div>
       </section>
+
+      {/* User Testimonials Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            User Testimonials
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Hear what our users have to say about our platform
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <p className="text-gray-700 italic">"This platform has revolutionized the way I verify my content. Highly recommended!"</p>
+            <p className="text-gray-900 font-bold mt-4">- Alex J.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <p className="text-gray-700 italic">"A must-have tool for any content creator. The blockchain integration is seamless."</p>
+            <p className="text-gray-900 font-bold mt-4">- Jamie L.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <p className="text-gray-700 italic">"Trust and transparency at its best. Kudos to the team!"</p>
+            <p className="text-gray-900 font-bold mt-4">- Taylor R.</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
