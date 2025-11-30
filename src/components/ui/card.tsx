@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 
 const Card = ({ children, className, ...props }) => (
   <div className={cn("bg-white shadow-md rounded-lg p-6", className)} {...props}>
