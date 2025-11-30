@@ -157,3 +157,11 @@ export const calculateKurtosis = (numbers: number[]): number => {
     const kurtosis = numbers.reduce((sum, num) => sum + Math.pow((num - avg) / stdDev, 4), 0) / n - 3;
     return kurtosis;
 };
+
+// Added a utility function to calculate the range ratio of an array of numbers
+export const calculateRangeRatio = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const range = calculateRange(numbers);
+    const max = Math.max(...numbers);
+    return max === 0 ? 0 : range / max;
+};
