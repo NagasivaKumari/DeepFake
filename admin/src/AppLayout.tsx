@@ -42,6 +42,7 @@ import AdminRoleAnalytics from "./AdminRoleAnalytics";
 import TwoWayUserCommunication from "./TwoWayUserCommunication";
 import ExternalServicesIntegration from "./ExternalServicesIntegration";
 import TwoWayCommunication from "./TwoWayCommunication";
+import AlgorandSubscription from "./AlgorandSubscription";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -211,6 +212,7 @@ export default function AppLayout() {
         <TwoWayUserCommunication />
         <ExternalServicesIntegration />
         <TwoWayCommunication />
+        <AlgorandSubscription />
       </div>
     </Router>
   );
