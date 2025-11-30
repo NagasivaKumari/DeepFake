@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Notifications from "./Notifications";
@@ -16,6 +17,7 @@ import CustomizableWidgets from "./CustomizableWidgets";
 import TwoFactorAuthentication from "./TwoFactorAuthentication";
 import UserFeedbackSupport from "./UserFeedbackSupport";
 import AdvancedAnalyticsDashboard from "./AdvancedAnalyticsDashboard";
+import AuditLogExport from "./AuditLogExport";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -53,72 +55,77 @@ export default function AppLayout() {
   };
 
   return (
-    <div style={layoutStyle}>
-      <Header />
-      {isBannerVisible && (
-        <div className="notification-banner">
-          <p>Welcome to the Admin Panel! Check out the new features.</p>
-          <button onClick={() => setBannerVisible(false)}>Dismiss</button>
-        </div>
-      )}
-      <div style={mainRowStyle}>
-        <Sidebar />
-        <main style={contentStyle}>
-          <div>
-            <h1>Welcome to the Admin Panel</h1>
-            <p>Manage your application here.</p>
-            <form onSubmit={handleSubmit}>
-              <div>
-                <label>Email:</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={handleEmailChange}
-                  placeholder="Enter new email"
-                />
-              </div>
-              <div>
-                <label>Password:</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter new password"
-                />
-              </div>
-              <button type="submit">Update</button>
-            </form>
-            <AdminAnalytics />
-            <AdminRoleManagement />
-            <AdminActivityDashboard />
-            <RealTimeNotifications />
-            <DataExportTool />
-            <DarkModeToggle />
-            <SystemLogsViewer />
-            <CustomizableWidgets />
-            <TwoFactorAuthentication />
-            <UserFeedbackSupport />
-            <AdvancedAnalyticsDashboard />
+    <Router>
+      <div style={layoutStyle} className="app-layout">
+        <Header />
+        {isBannerVisible && (
+          <div className="notification-banner">
+            <p>Welcome to the Admin Panel! Check out the new features.</p>
+            <button onClick={() => setBannerVisible(false)}>Dismiss</button>
           </div>
-        </main>
+        )}
+        <div style={mainRowStyle}>
+          <Sidebar />
+          <main style={contentStyle}>
+            <div>
+              <h1>Welcome to the Admin Panel</h1>
+              <p>Manage your application here.</p>
+              <form onSubmit={handleSubmit}>
+                <div>
+                  <label>Email:</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    placeholder="Enter new email"
+                  />
+                </div>
+                <div>
+                  <label>Password:</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <button type="submit">Update</button>
+              </form>
+              <AdminAnalytics />
+              <AdminRoleManagement />
+              <AdminActivityDashboard />
+              <RealTimeNotifications />
+              <DataExportTool />
+              <DarkModeToggle />
+              <SystemLogsViewer />
+              <CustomizableWidgets />
+              <TwoFactorAuthentication />
+              <UserFeedbackSupport />
+              <AdvancedAnalyticsDashboard />
+            </div>
+          </main>
+        </div>
+        <section>
+          <Notifications />
+          <ActivityLog />
+          <AdvancedSettings />
+          <UserProfile />
+        </section>
+        <footer
+          style={{
+            textAlign: "center",
+            padding: "20px 0",
+            background: "#fff",
+          }}
+        >
+          <p>
+            &copy; {new Date().getFullYear()} Admin Panel. All rights reserved.
+          </p>
+        </footer>
+        <Routes>
+          <Route path="/audit-log-export" element={<AuditLogExport />} />
+        </Routes>
       </div>
-      <section>
-        <Notifications />
-        <ActivityLog />
-        <AdvancedSettings />
-        <UserProfile />
-      </section>
-      <footer
-        style={{
-          textAlign: "center",
-          padding: "20px 0",
-          background: "#fff",
-        }}
-      >
-        <p>
-          &copy; {new Date().getFullYear()} Admin Panel. All rights reserved.
-        </p>
-      </footer>
-    </div>
+    </Router>
   );
 }
