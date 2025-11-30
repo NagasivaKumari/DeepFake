@@ -76,6 +76,14 @@ const contentStyle: React.CSSProperties = {
   padding: "40px 0",
 };
 
+// Add a loading spinner for better user experience
+const LoadingSpinner = () => (
+  <div className="spinner" aria-label="Loading">
+    <div className="double-bounce1"></div>
+    <div className="double-bounce2"></div>
+  </div>
+);
+
 // AppLayout is the main layout component for the admin dashboard.
 // It includes various widgets and features such as notifications, analytics, and language selection.
 export default function AppLayout() {
@@ -83,6 +91,7 @@ export default function AppLayout() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setEmail(e.target.value);
@@ -118,6 +127,7 @@ export default function AppLayout() {
             <Sidebar />
             <main style={contentStyle}>
               <div>
+                {loading && <LoadingSpinner />}
                 <h1>Welcome to the Admin Panel</h1>
                 <p>Manage your application here.</p>
                 <form onSubmit={handleSubmit}>

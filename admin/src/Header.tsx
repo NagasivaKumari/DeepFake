@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 
 
+const HeaderIcon = ({ icon, tooltip }: { icon: JSX.Element; tooltip: string }) => (
+  <div className="header-icon" aria-label={tooltip} data-tooltip={tooltip}>
+    {icon}
+  </div>
+);
+
 const Header: React.FC = () => {
   const currentHour = new Date().getHours();
   const greeting =
@@ -68,6 +74,8 @@ const Header: React.FC = () => {
           </ul>
         )}
       </div>
+      <HeaderIcon icon={<SomeIcon />} tooltip="Home" />
+      <HeaderIcon icon={<AnotherIcon />} tooltip="Settings" />
     </header>
   );
 };
