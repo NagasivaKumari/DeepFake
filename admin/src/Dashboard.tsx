@@ -1,29 +1,29 @@
 import React, { useEffect, useState } from "react";
 import StatsCard from "../../src/components/dashboard/StatsCard";
-import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
-import Button from "./Button"; // Importing a hypothetical Button component
-import NotificationPanel from "./NotificationPanel"; // Importing a hypothetical NotificationPanel component
-import TaskManager from "./TaskManager"; // Importing a hypothetical TaskManager component
-import PerformanceChart from "./PerformanceChart"; // Importing a hypothetical PerformanceChart component
-import FeedbackForm from "./FeedbackForm"; // Importing a hypothetical FeedbackForm component
-import SystemLogs from "./SystemLogs"; // Importing a hypothetical SystemLogs component
-import AdminChat from "./AdminChat"; // Importing a hypothetical AdminChat component
-import ResourceLinks from "./ResourceLinks"; // Importing a hypothetical ResourceLinks component
-import AnalyticsOverview from "./AnalyticsOverview"; // Importing a hypothetical AnalyticsOverview component
-import AdminCalendar from "./AdminCalendar"; // Importing a hypothetical AdminCalendar component
-import AdminAnnouncements from "./AdminAnnouncements"; // Importing a hypothetical AdminAnnouncements component
-import AdminReports from "./AdminReports"; // Importing a hypothetical AdminReports component
-import AdminUserAnalytics from "./AdminUserAnalytics"; // Importing a hypothetical AdminUserAnalytics component
-import AdminErrorLogs from "./AdminErrorLogs"; // Importing a hypothetical AdminErrorLogs component
-import AdminActivityHeatmap from "./AdminActivityHeatmap"; // Importing a hypothetical AdminActivityHeatmap component
-import AdminAuditTrail from "./AdminAuditTrail"; // Importing a hypothetical AdminAuditTrail component
-import AdminResourceUsage from "./AdminResourceUsage"; // Importing a hypothetical AdminResourceUsage component
-import AdminSecurityPanel from "./AdminSecurityPanel"; // Importing a hypothetical AdminSecurityPanel component
-import AdminAdvancedAnalytics from "./AdminAdvancedAnalytics"; // Importing a hypothetical AdminAdvancedAnalytics component
-import AdminUserManagement from "./AdminUserManagement"; // Importing a hypothetical AdminUserManagement component
-import AdminNotificationSettings from "./AdminNotificationSettings"; // Importing a hypothetical AdminNotificationSettings component
-import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
-import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
+import RecentActivities from "./RecentActivities";
+import Button from "./Button";
+import NotificationPanel from "./NotificationPanel";
+import TaskManager from "./TaskManager";
+import PerformanceChart from "./PerformanceChart";
+import FeedbackForm from "./FeedbackForm";
+import SystemLogs from "./SystemLogs";
+import AdminChat from "./AdminChat";
+import ResourceLinks from "./ResourceLinks";
+import AnalyticsOverview from "./AnalyticsOverview";
+import AdminCalendar from "./AdminCalendar";
+import AdminAnnouncements from "./AdminAnnouncements";
+import AdminReports from "./AdminReports";
+import AdminUserAnalytics from "./AdminUserAnalytics";
+import AdminErrorLogs from "./AdminErrorLogs";
+import AdminActivityHeatmap from "./AdminActivityHeatmap";
+import AdminAuditTrail from "./AdminAuditTrail";
+import AdminResourceUsage from "./AdminResourceUsage";
+import AdminSecurityPanel from "./AdminSecurityPanel";
+import AdminAdvancedAnalytics from "./AdminAdvancedAnalytics";
+import AdminUserManagement from "./AdminUserManagement";
+import AdminNotificationSettings from "./AdminNotificationSettings";
+import AdminThemeSettings from "./AdminThemeSettings";
+import AdminDataBackup from "./AdminDataBackup";
 import { triggerZapierWebhook } from "../../src/utils/zapierIntegration";
 
 const Dashboard = () => {
@@ -43,7 +43,6 @@ const Dashboard = () => {
     fetchReputationScore();
   }, []);
 
-  // Added a section to display admin statistics
   const stats = [
     { label: "Total Users", value: 1200 },
     { label: "Media Items", value: 450 },
@@ -51,14 +50,18 @@ const Dashboard = () => {
     { label: "Reputation Score", value: reputationScore || "N/A" },
   ];
 
-  // Added action buttons for admin tasks
   return (
     <div>
       <h1>Admin Dashboard</h1>
       <p>Welcome to the admin dashboard. Here you can manage users, media, and settings.</p>
       <div className="stats-section">
         {stats.map((stat, index) => (
-          <StatsCard key={index} label={stat.label} value={stat.value} />
+          <StatsCard
+            key={index}
+            label={stat.label}
+            value={stat.value}
+            style={{ color: "white" }} // Set text color to white permanently
+          />
         ))}
       </div>
       <div className="recent-activities-section">
@@ -66,86 +69,7 @@ const Dashboard = () => {
         <RecentActivities />
       </div>
       <div className="action-buttons">
-        <Button
-          label="Add User"
-          onClick={async () => {
-            console.log("Add User clicked");
-          }}
-        />
-        <Button
-          label="Approve Media"
-          onClick={async () => {
-            console.log("Approve Media clicked");
-            await triggerZapierWebhook("approve-media", { mediaId: "12345" });
-          }}
-        />
-        <Button label="View Reports" onClick={() => console.log("View Reports clicked")} />
-      </div>
-      <div className="notification-panel">
-        <NotificationPanel />
-      </div>
-      <div className="task-manager">
-        <TaskManager />
-      </div>
-      <div className="performance-chart">
-        <PerformanceChart />
-      </div>
-      <div className="feedback-form">
-        <FeedbackForm />
-      </div>
-      <div className="system-logs">
-        <SystemLogs />
-      </div>
-      <div className="admin-chat">
-        <AdminChat />
-      </div>
-      <div className="resource-links">
-        <ResourceLinks />
-      </div>
-      <div className="analytics-overview">
-        <AnalyticsOverview />
-      </div>
-      <div className="admin-calendar">
-        <AdminCalendar />
-      </div>
-      <div className="admin-announcements">
-        <AdminAnnouncements />
-      </div>
-      <div className="admin-reports">
-        <AdminReports />
-      </div>
-      <div className="admin-user-analytics">
-        <AdminUserAnalytics />
-      </div>
-      <div className="admin-error-logs">
-        <AdminErrorLogs />
-      </div>
-      <div className="admin-activity-heatmap">
-        <AdminActivityHeatmap />
-      </div>
-      <div className="admin-audit-trail">
-        <AdminAuditTrail />
-      </div>
-      <div className="admin-resource-usage">
-        <AdminResourceUsage />
-      </div>
-      <div className="admin-security-panel">
-        <AdminSecurityPanel />
-      </div>
-      <div className="admin-advanced-analytics">
-        <AdminAdvancedAnalytics />
-      </div>
-      <div className="admin-user-management">
-        <AdminUserManagement />
-      </div>
-      <div className="admin-notification-settings">
-        <AdminNotificationSettings />
-      </div>
-      <div className="admin-theme-settings">
-        <AdminThemeSettings />
-      </div>
-      <div className="admin-data-backup">
-        <AdminDataBackup />
+        <Button label="Trigger Zapier Webhook" onClick={triggerZapierWebhook} />
       </div>
     </div>
   );
