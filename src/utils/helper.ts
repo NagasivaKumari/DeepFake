@@ -236,3 +236,10 @@ export const calculateWeightedVariance = (numbers: number[], weights: number[]):
     const weightedVariance = numbers.reduce((sum, num, index) => sum + weights[index] * Math.pow(num - weightedMean, 2), 0) / weights.reduce((sum, weight) => sum + weight, 0);
     return weightedVariance;
 };
+
+// Added a utility function to calculate the weighted standard deviation of an array of numbers
+export const calculateWeightedStandardDeviation = (numbers: number[], weights: number[]): number => {
+    if (numbers.length === 0 || numbers.length !== weights.length) return 0;
+    const weightedVariance = calculateWeightedVariance(numbers, weights);
+    return Math.sqrt(weightedVariance);
+};
