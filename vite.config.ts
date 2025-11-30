@@ -21,7 +21,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: [], // Exclude server-side files
+      external: ['axios'], // Ensure axios is excluded from the bundle
     },
+  },
+  optimizeDeps: {
+    include: ['axios'],
   },
 });
