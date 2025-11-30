@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const RealTimeNotifications = () => {
   const [notifications, setNotifications] = useState([
@@ -12,6 +12,20 @@ const RealTimeNotifications = () => {
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
   };
+
+  // Simulate real-time notifications with a timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newNotification = {
+        id: Date.now(),
+        message: `New notification at ${new Date().toLocaleTimeString()}`,
+        time: 'Just now',
+      };
+      setNotifications((prev) => [newNotification, ...prev]);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ position: 'relative' }}>
