@@ -121,3 +121,11 @@ export const calculateWeightedMean = (numbers: number[], weights: number[]): num
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     return weightedSum / totalWeight;
 };
+
+// Added a utility function to calculate the percentile of a value in an array
+export const calculatePercentile = (numbers: number[], value: number): number => {
+    if (numbers.length === 0) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const rank = sorted.filter(num => num < value).length;
+    return (rank / sorted.length) * 100;
+};
