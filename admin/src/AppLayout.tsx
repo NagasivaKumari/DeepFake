@@ -53,6 +53,7 @@ import UserActivityTracker from "./UserActivityTracker";
 import NotificationSettings from "./NotificationSettings";
 import AdvancedSearch from "./AdvancedSearch";
 import ErrorBoundary from "./ErrorBoundary";
+import ExportData from "./ExportData";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -175,6 +176,7 @@ export default function AppLayout() {
                 <UserActivityTracker />
                 <NotificationSettings />
                 <AdvancedSearch />
+                <ExportData />
               </div>
             </main>
           </div>
