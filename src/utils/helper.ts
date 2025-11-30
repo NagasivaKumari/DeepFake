@@ -189,3 +189,11 @@ export const calculateGeometricStandardDeviation = (numbers: number[]): number =
     const variance = logNumbers.reduce((sum, logNum) => sum + Math.pow(logNum - logMean, 2), 0) / numbers.length;
     return Math.exp(Math.sqrt(variance));
 };
+
+// Added a utility function to calculate the harmonic standard deviation of an array of numbers
+export const calculateHarmonicStandardDeviation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const reciprocalNumbers = numbers.map(num => 1 / num);
+    const reciprocalMean = calculateAverage(reciprocalNumbers);
+    return 1 / reciprocalMean;
+};
