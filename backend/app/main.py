@@ -114,5 +114,5 @@ def health(request: Request):
 
 @app.get("/secure-endpoint")
 @limiter.limit("5/minute")
-async def secure_endpoint():
+async def secure_endpoint(request: Request):
     return {"message": "This endpoint is rate-limited."}
