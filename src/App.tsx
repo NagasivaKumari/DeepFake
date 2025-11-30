@@ -49,6 +49,7 @@ const App = () => {
   const sampleString = "hello world";
   const reversed = reverseString(sampleString);
   const capitalized = capitalizeWords(sampleString);
+  const palindromeCheck = isPalindrome("madam");
 
   const handleLogin = async () => {
     try {
@@ -103,6 +104,7 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <TwoFactorAuthSetup />
+            <UserProfile />
           </BrowserRouter>
         </WalletProvider>
       </TooltipProvider>
