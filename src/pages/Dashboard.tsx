@@ -136,7 +136,7 @@ export default function Dashboard() {
               Decentralized Content Verification
             </Badge>
             
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white">
               Your Content, Verified.
               <span className="block text-green-300">Forever.</span>
             </h1>

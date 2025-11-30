@@ -45,7 +45,7 @@ export default function TrustGraph() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3 mb-4">
-                <div className="text-5xl font-bold">{reputationScore || "N/A"}</div>
+                <div className="text-5xl font-bold text-white">{reputationScore || "N/A"}</div>
                 <div className="text-white/80">/ 5.0</div>
               </div>
               <div className="flex gap-1 mb-3">
