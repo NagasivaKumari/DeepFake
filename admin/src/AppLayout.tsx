@@ -32,6 +32,7 @@ import CustomWidgetsMarketplace from "./CustomWidgetsMarketplace";
 import AdminActivityNotifications from "./AdminActivityNotifications";
 import DataVisualizationTools from "./DataVisualizationTools";
 import ContentModerationTools from "./ContentModerationTools";
+import IntegrationWithExternalServices from "./IntegrationWithExternalServices";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -130,6 +131,7 @@ export default function AppLayout() {
               <AdminActivityNotifications />
               <DataVisualizationTools />
               <ContentModerationTools />
+              <IntegrationWithExternalServices />
             </div>
           </main>
         </div>
