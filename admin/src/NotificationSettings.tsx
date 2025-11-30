@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+// NotificationSettings component allows admins to configure notification preferences.
+// Preferences include email, SMS, and in-app notifications.
 const NotificationSettings: React.FC = () => {
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [smsNotifications, setSmsNotifications] = useState(false);

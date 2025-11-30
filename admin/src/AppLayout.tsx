@@ -76,6 +76,8 @@ const contentStyle: React.CSSProperties = {
   padding: "40px 0",
 };
 
+// AppLayout is the main layout component for the admin dashboard.
+// It includes various widgets and features such as notifications, analytics, and language selection.
 export default function AppLayout() {
   const [isBannerVisible, setBannerVisible] = useState(true);
   const [email, setEmail] = useState("");

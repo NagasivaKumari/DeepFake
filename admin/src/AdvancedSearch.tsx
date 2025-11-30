@@ -14,6 +14,8 @@ const sampleData: SearchItem[] = [
   { id: 4, name: 'Test Log', type: 'Log' },
 ];
 
+// AdvancedSearch component allows users to search for users, media, or logs.
+// It uses Fuse.js for fuzzy searching and displays results dynamically.
 const AdvancedSearch: React.FC = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchItem[]>([]);
