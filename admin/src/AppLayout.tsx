@@ -58,6 +58,7 @@ import ExportData from "./ExportData";
 import RealTimeAnalytics from "./RealTimeAnalytics";
 import LanguageSelector from "./LanguageSelector";
 import LayoutEditor from "./LayoutEditor";
+import AIInsightsPlaceholder from "./AIInsightsPlaceholder";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -198,6 +199,7 @@ export default function AppLayout() {
                   <RealTimeAnalytics />
                   <LanguageSelector />
                   <LayoutEditor />
+                  <AIInsightsPlaceholder />
                 </div>
               </main>
             </div>
