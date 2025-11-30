@@ -45,6 +45,7 @@ import TwoWayCommunication from "./TwoWayCommunication";
 import AlgorandSubscription from "./AlgorandSubscription";
 import CustomizableDashboardLayout from "./CustomizableDashboardLayout";
 import UserFeedbackCollection from "./UserFeedbackCollection";
+import RoleBasedAccessControl from "./RoleBasedAccessControl";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -151,6 +152,7 @@ export default function AppLayout() {
               <DashboardPerformanceMetrics />
               <AuditLogExport />
               <CustomizableDashboardLayout />
+              <RoleBasedAccessControl />
             </div>
           </main>
         </div>
