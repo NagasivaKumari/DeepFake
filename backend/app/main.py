@@ -10,6 +10,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -64,7 +65,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# Add HTTPS enforcement middleware
+app.add_middleware(HTTPSRedirectMiddleware)
 
 app.include_router(registrations.router)
 app.include_router(media.router)
