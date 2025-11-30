@@ -5,6 +5,7 @@ import Notifications from "./Notifications";
 import ActivityLog from "./ActivityLog";
 import AdvancedSettings from "./AdvancedSettings";
 import UserProfile from "./UserProfile";
+import AdminAnalytics from "./AdminAnalytics";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -75,6 +76,7 @@ export default function AppLayout() {
               </div>
               <button type="submit">Update</button>
             </form>
+            <AdminAnalytics />
           </div>
         </main>
       </div>
