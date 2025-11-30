@@ -19,6 +19,7 @@ import UserFeedbackSupport from "./UserFeedbackSupport";
 import AdvancedAnalyticsDashboard from "./AdvancedAnalyticsDashboard";
 import AuditLogExport from "./AuditLogExport";
 import CustomThemes from "./CustomThemes";
+import MultiLanguageSupport from "./MultiLanguageSupport";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -104,6 +105,7 @@ export default function AppLayout() {
               <UserFeedbackSupport />
               <AdvancedAnalyticsDashboard />
               <CustomThemes />
+              <MultiLanguageSupport />
             </div>
           </main>
         </div>
@@ -127,6 +129,10 @@ export default function AppLayout() {
         <Routes>
           <Route path="/audit-log-export" element={<AuditLogExport />} />
           <Route path="/custom-themes" element={<CustomThemes />} />
+          <Route
+            path="/multi-language-support"
+            element={<MultiLanguageSupport />}
+          />
         </Routes>
       </div>
     </Router>
