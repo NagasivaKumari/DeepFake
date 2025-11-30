@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import TwoFactorAuthSetup from "./components/TwoFactorAuthSetup";
 import { addNumbers, isEven, generateRandomNumber } from './utils/dummyUtils';
 import { factorial, gcd, isPrime } from './utils/mathUtils';
+import { reverseString, capitalizeWords, isPalindrome } from './utils/stringUtils';
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,11 @@ const App = () => {
   const factorialResult = factorial(number);
   const gcdResult = gcd(48, 18);
   const primeCheck = isPrime(number);
+
+  const sampleString = "hello world";
+  const reversed = reverseString(sampleString);
+  const capitalized = capitalizeWords(sampleString);
+  const palindromeCheck = isPalindrome("madam");
 
   return (
     <QueryClientProvider client={queryClient}>
