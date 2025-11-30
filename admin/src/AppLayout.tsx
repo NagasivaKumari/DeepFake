@@ -10,6 +10,7 @@ import AdminRoleManagement from "./AdminRoleManagement";
 import AdminActivityDashboard from "./AdminActivityDashboard";
 import RealTimeNotifications from "./RealTimeNotifications";
 import DataExportTool from "./DataExportTool";
+import DarkModeToggle from "./DarkModeToggle";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -87,6 +88,7 @@ export default function AppLayout() {
             <AdminActivityDashboard />
             <RealTimeNotifications />
             <DataExportTool />
+            <DarkModeToggle />
           </div>
         </main>
       </div>
