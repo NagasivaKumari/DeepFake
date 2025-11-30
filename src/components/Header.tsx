@@ -1,4 +1,3 @@
-
 import { Link as Logo } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -129,6 +128,14 @@ const Header = () => {
 
         </div> {/* <-- closes flex items-center justify-between */}
 
+        {/* New navigation bar section */}
+        <nav className="mt-4">
+          <ul className="flex gap-4">
+            <li><Link to="/" className="text-foreground hover:text-primary transition-colors">Home</Link></li>
+            <li><Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">Dashboard</Link></li>
+            <li><Link to="/about" className="text-foreground hover:text-primary transition-colors">About</Link></li>
+          </ul>
+        </nav>
       </div> {/* <-- closes container mx-auto px-6 py-4 */}
     </header>
   );

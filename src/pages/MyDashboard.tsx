@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import storageClient from "@/api/storageClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -380,6 +380,25 @@ export default function MyDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* User Statistics - New Feature */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">User Statistics</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-gray-100 p-4 rounded-lg shadow">
+              <p className="text-sm text-gray-500">Posts</p>
+              <p className="text-2xl font-bold text-gray-800">{registeredMedia.length}</p>
+            </div>
+            <div className="bg-gray-100 p-4 rounded-lg shadow">
+              <p className="text-sm text-gray-500">Followers</p>
+              <p className="text-2xl font-bold text-gray-800">200</p>
+            </div>
+            <div className="bg-gray-100 p-4 rounded-lg shadow">
+              <p className="text-sm text-gray-500">Following</p>
+              <p className="text-2xl font-bold text-gray-800">150</p>
+            </div>
+          </div>
         </div>
 
         {/* Content Tabs */}
