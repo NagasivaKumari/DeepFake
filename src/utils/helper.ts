@@ -80,3 +80,10 @@ export const calculateMode = (numbers: number[]): number[] => {
         .filter(key => frequencyMap[Number(key)] === maxFrequency)
         .map(Number);
 };
+
+// Added a utility function to calculate the variance of an array of numbers
+export const calculateVariance = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    return numbers.reduce((sum, num) => sum + Math.pow(num - avg, 2), 0) / numbers.length;
+};
