@@ -46,6 +46,7 @@ import AlgorandSubscription from "./AlgorandSubscription";
 import CustomizableDashboardLayout from "./CustomizableDashboardLayout";
 import UserFeedbackCollection from "./UserFeedbackCollection";
 import RoleBasedAccessControl from "./RoleBasedAccessControl";
+import MultiTenantSupport from "./MultiTenantSupport";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -153,6 +154,7 @@ export default function AppLayout() {
               <AuditLogExport />
               <CustomizableDashboardLayout />
               <RoleBasedAccessControl />
+              <MultiTenantSupport />
             </div>
           </main>
         </div>
