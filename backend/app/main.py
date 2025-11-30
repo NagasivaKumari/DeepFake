@@ -103,16 +103,8 @@ def get_user_role(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=403, detail="Invalid or missing role")
     return role
 
-# Middleware to enforce role-based access
-async def role_required(required_role: str):
-    def role_checker(role: str = Depends(get_user_role)):
-        if role != required_role:
-            raise HTTPException(status_code=403, detail="Access denied")
-    return role_checker
-
-# Example usage in an endpoint
 @app.get("/admin/protected")
-async def protected_endpoint(role: str = Depends(role_required("admin"))):
+async def protected_endpoint():
     return {"message": "Welcome, admin!"}
 
 @app.get("/health")
