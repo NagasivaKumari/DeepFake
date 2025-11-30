@@ -39,6 +39,7 @@ import CustomizableEmailTemplates from "./CustomizableEmailTemplates";
 import DarkModeScheduler from "./DarkModeScheduler";
 import GlobalSearch from "./GlobalSearch";
 import AdminRoleAnalytics from "./AdminRoleAnalytics";
+import TwoWayUserCommunication from "./TwoWayUserCommunication";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -204,6 +205,7 @@ export default function AppLayout() {
         </Routes>
         <DarkModeScheduler />
         <GlobalSearch />
+        <TwoWayUserCommunication />
       </div>
     </Router>
   );
