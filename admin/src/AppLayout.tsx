@@ -7,6 +7,7 @@ import AdvancedSettings from "./AdvancedSettings";
 import UserProfile from "./UserProfile";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminRoleManagement from "./AdminRoleManagement";
+import AdminActivityDashboard from "./AdminActivityDashboard";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -79,6 +80,7 @@ export default function AppLayout() {
             </form>
             <AdminAnalytics />
             <AdminRoleManagement />
+            <AdminActivityDashboard />
           </div>
         </main>
       </div>
