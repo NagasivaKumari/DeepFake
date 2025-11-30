@@ -5,8 +5,33 @@ from .routes import registrations
 from .routes import ai_generate
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 app = FastAPI(title="ProofChain Backend")
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger("ProofChain Backend")
+
+# Log startup message
+logger.info("Starting ProofChain Backend API")
+
+# Middleware to log requests and responses
+@app.middleware("http")
+async def log_requests(request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
+
+# Middleware to log unhandled exceptions
+@app.exception_handler(Exception)
+async def log_exceptions(request, exc):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return await app.default_exception_handler(request, exc)
 
 app.add_middleware(
     CORSMiddleware,
