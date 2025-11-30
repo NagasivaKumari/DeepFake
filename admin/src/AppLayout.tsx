@@ -40,6 +40,7 @@ import DarkModeScheduler from "./DarkModeScheduler";
 import GlobalSearch from "./GlobalSearch";
 import AdminRoleAnalytics from "./AdminRoleAnalytics";
 import TwoWayUserCommunication from "./TwoWayUserCommunication";
+import ExternalServicesIntegration from "./ExternalServicesIntegration";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -207,6 +208,7 @@ export default function AppLayout() {
         <DarkModeScheduler />
         <GlobalSearch />
         <TwoWayUserCommunication />
+        <ExternalServicesIntegration />
       </div>
     </Router>
   );
