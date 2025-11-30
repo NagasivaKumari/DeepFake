@@ -80,6 +80,20 @@ const contentStyle: React.CSSProperties = {
   padding: "40px 0",
 };
 
+const touchFriendlyStyle: React.CSSProperties = {
+  padding: "12px 24px",
+  fontSize: "16px",
+  borderRadius: "8px",
+  touchAction: "manipulation",
+};
+
+const touchInputStyle: React.CSSProperties = {
+  padding: "10px",
+  fontSize: "16px",
+  borderRadius: "6px",
+  marginBottom: "12px",
+};
+
 // Add a loading spinner for better user experience
 const LoadingSpinner = () => (
   <div className="spinner" aria-label="Loading">
@@ -135,7 +149,7 @@ export default function AppLayout() {
                   {loading && <LoadingSpinner />}
                   <h1>Welcome to the Admin Panel</h1>
                   <p>Manage your application here.</p>
-                  <form onSubmit={handleSubmit}>
+                  <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
                     <div>
                       <label>Email:</label>
                       <input
@@ -143,6 +157,7 @@ export default function AppLayout() {
                         value={email}
                         onChange={handleEmailChange}
                         placeholder="Enter new email"
+                        style={touchInputStyle}
                       />
                     </div>
                     <div>
@@ -152,9 +167,12 @@ export default function AppLayout() {
                         value={password}
                         onChange={handlePasswordChange}
                         placeholder="Enter new password"
+                        style={touchInputStyle}
                       />
                     </div>
-                    <button type="submit">Update</button>
+                    <button type="submit" style={touchFriendlyStyle}>
+                      Update
+                    </button>
                   </form>
                   <AdminAnalytics />
                   <AdminRoleManagement />
