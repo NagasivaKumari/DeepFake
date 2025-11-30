@@ -41,6 +41,7 @@ import GlobalSearch from "./GlobalSearch";
 import AdminRoleAnalytics from "./AdminRoleAnalytics";
 import TwoWayUserCommunication from "./TwoWayUserCommunication";
 import ExternalServicesIntegration from "./ExternalServicesIntegration";
+import TwoWayCommunication from "./TwoWayCommunication";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -209,6 +210,7 @@ export default function AppLayout() {
         <GlobalSearch />
         <TwoWayUserCommunication />
         <ExternalServicesIntegration />
+        <TwoWayCommunication />
       </div>
     </Router>
   );
