@@ -24,6 +24,7 @@ import AdminCollaborationTools from "./AdminCollaborationTools";
 import ScheduledReports from "./ScheduledReports";
 import AIPoweredInsights from "./AIPoweredInsights";
 import CustomizableNotifications from "./CustomizableNotifications";
+import RoleBasedDashboardViews from "./RoleBasedDashboardViews";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -114,6 +115,7 @@ export default function AppLayout() {
               <ScheduledReports />
               <AIPoweredInsights />
               <CustomizableNotifications />
+              <RoleBasedDashboardViews role="admin" />
             </div>
           </main>
         </div>
@@ -156,6 +158,10 @@ export default function AppLayout() {
           <Route
             path="/customizable-notifications"
             element={<CustomizableNotifications />}
+          />
+          <Route
+            path="/role-based-dashboard-views"
+            element={<RoleBasedDashboardViews role="admin" />}
           />
         </Routes>
       </div>
