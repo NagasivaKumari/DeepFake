@@ -259,3 +259,10 @@ export const calculateMeanSquareError = (actual: number[], predicted: number[]):
     const squareErrorSum = actual.reduce((sum, value, index) => sum + Math.pow(value - predicted[index], 2), 0);
     return squareErrorSum / actual.length;
 };
+
+// Added a utility function to calculate the mean absolute percentage error between two arrays
+export const calculateMeanAbsolutePercentageError = (actual: number[], predicted: number[]): number => {
+    if (actual.length === 0 || actual.length !== predicted.length) return 0;
+    const percentageErrorSum = actual.reduce((sum, value, index) => sum + Math.abs((value - predicted[index]) / value), 0);
+    return (percentageErrorSum / actual.length) * 100;
+};
