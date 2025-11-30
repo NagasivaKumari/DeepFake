@@ -55,6 +55,7 @@ import AdvancedSearch from "./AdvancedSearch";
 import ErrorBoundary from "./ErrorBoundary";
 import ExportData from "./ExportData";
 import RealTimeAnalytics from "./RealTimeAnalytics";
+import LanguageSelector from "./LanguageSelector";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -179,6 +180,7 @@ export default function AppLayout() {
                 <AdvancedSearch />
                 <ExportData />
                 <RealTimeAnalytics />
+                <LanguageSelector />
               </div>
             </main>
           </div>
