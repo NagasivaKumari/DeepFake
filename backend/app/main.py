@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from .routes import media
 from .routes import auth
 from .routes import registrations
@@ -109,7 +109,7 @@ async def protected_endpoint():
 
 @app.get("/health")
 @limiter.limit("5/minute")
-def health():
+def health(request: Request):
     return {"status": "ok"}
 
 @app.get("/secure-endpoint")
