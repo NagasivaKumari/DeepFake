@@ -22,3 +22,19 @@ export const calculateAverage = (numbers: number[]): number => {
     if (numbers.length === 0) return 0;
     return calculateSum(numbers) / numbers.length;
 };
+
+export const calculateMedian = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+};
+
+export const calculateStandardDeviation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    const variance = numbers.reduce((sum, num) => sum + Math.pow(num - avg, 2), 0) / numbers.length;
+    return Math.sqrt(variance);
+};
