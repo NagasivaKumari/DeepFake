@@ -13,3 +13,7 @@ export const calculateSum = (numbers: number[]): number => {
 export const findMax = (numbers: number[]): number => {
     return Math.max(...numbers);
 };
+
+export const findMin = (numbers: number[]): number => {
+    return Math.min(...numbers);
+};
