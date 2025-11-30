@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import { ArrowRight, Zap } from "lucide-react";
 import LuteIcon from "./LuteIcon";
 import { motion } from "framer-motion";
