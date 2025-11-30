@@ -18,6 +18,7 @@ import DeveloperDocs from "./pages/DeveloperDocs";
 import FAQ from "./pages/FAQ";
 import KycPage from "./pages/KycPage";
 import NotFound from "./pages/NotFound";
+import TwoFactorAuthSetup from "./components/TwoFactorAuthSetup";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <TwoFactorAuthSetup />
           </BrowserRouter>
         </WalletProvider>
       </TooltipProvider>
