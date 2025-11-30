@@ -33,6 +33,7 @@ import AdminActivityNotifications from "./AdminActivityNotifications";
 import DataVisualizationTools from "./DataVisualizationTools";
 import ContentModerationTools from "./ContentModerationTools";
 import IntegrationWithExternalServices from "./IntegrationWithExternalServices";
+import AdminOnboardingGuide from "./AdminOnboardingGuide";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -132,6 +133,7 @@ export default function AppLayout() {
               <DataVisualizationTools />
               <ContentModerationTools />
               <IntegrationWithExternalServices />
+              <AdminOnboardingGuide />
             </div>
           </main>
         </div>
