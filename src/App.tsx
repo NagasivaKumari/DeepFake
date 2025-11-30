@@ -1,5 +1,6 @@
 import { WalletProvider } from "./hooks/WalletContext";
 import useSyncOnReconnect from "./hooks/useSyncOnReconnect";
+import useNetworkStatus from "./hooks/useNetworkStatus";
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -28,6 +29,8 @@ const App = () => {
 
   useSyncOnReconnect(syncData);
 
+  const isOnline = useNetworkStatus();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -37,6 +40,9 @@ const App = () => {
           {/* Enable opt-in future flags to silence v7 deprecation warnings and opt-in to v7 behaviors */}
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Header />
+            <div className={`network-status ${isOnline ? 'online' : 'offline'}`}>
+              {isOnline ? 'You are online' : 'You are offline'}
+            </div>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
