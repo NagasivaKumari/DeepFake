@@ -20,6 +20,7 @@ import KycPage from "./pages/KycPage";
 import NotFound from "./pages/NotFound";
 import TwoFactorAuthSetup from "./components/TwoFactorAuthSetup";
 import { addNumbers, isEven, generateRandomNumber } from './utils/dummyUtils';
+import { factorial, gcd, isPrime } from './utils/mathUtils';
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,11 @@ const App = () => {
   const randomNum = generateRandomNumber(1, 100);
   const sum = addNumbers(10, 20);
   const evenCheck = isEven(randomNum);
+
+  const number = 5;
+  const factorialResult = factorial(number);
+  const gcdResult = gcd(48, 18);
+  const primeCheck = isPrime(number);
 
   return (
     <QueryClientProvider client={queryClient}>
