@@ -252,3 +252,10 @@ export const calculateInterdecileRange = (numbers: number[]): number => {
     const d9 = sorted[Math.ceil((sorted.length * 0.9)) - 1];
     return d9 - d1;
 };
+
+// Added a utility function to calculate the mean square error between two arrays
+export const calculateMeanSquareError = (actual: number[], predicted: number[]): number => {
+    if (actual.length === 0 || actual.length !== predicted.length) return 0;
+    const squareErrorSum = actual.reduce((sum, value, index) => sum + Math.pow(value - predicted[index], 2), 0);
+    return squareErrorSum / actual.length;
+};
