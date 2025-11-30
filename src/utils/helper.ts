@@ -104,3 +104,12 @@ export const calculateMidrange = (numbers: number[]): number => {
     const min = Math.min(...numbers);
     return (max + min) / 2;
 };
+
+// Added a utility function to calculate the trimmed mean of an array of numbers
+export const calculateTrimmedMean = (numbers: number[], trimPercent: number): number => {
+    if (numbers.length === 0 || trimPercent < 0 || trimPercent > 50) return 0;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const trimCount = Math.floor((trimPercent / 100) * sorted.length);
+    const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+    return calculateAverage(trimmed);
+};
