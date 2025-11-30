@@ -19,6 +19,7 @@ import AdminActivityHeatmap from "./AdminActivityHeatmap"; // Importing a hypoth
 import AdminAuditTrail from "./AdminAuditTrail"; // Importing a hypothetical AdminAuditTrail component
 import AdminResourceUsage from "./AdminResourceUsage"; // Importing a hypothetical AdminResourceUsage component
 import AdminSecurityPanel from "./AdminSecurityPanel"; // Importing a hypothetical AdminSecurityPanel component
+import AdminAdvancedAnalytics from "./AdminAdvancedAnalytics"; // Importing a hypothetical AdminAdvancedAnalytics component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -97,6 +98,9 @@ const Dashboard = () => {
       </div>
       <div className="admin-security-panel">
         <AdminSecurityPanel />
+      </div>
+      <div className="admin-advanced-analytics">
+        <AdminAdvancedAnalytics />
       </div>
     </div>
   );
