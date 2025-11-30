@@ -12,6 +12,7 @@ import RealTimeNotifications from "./RealTimeNotifications";
 import DataExportTool from "./DataExportTool";
 import DarkModeToggle from "./DarkModeToggle";
 import SystemLogsViewer from "./SystemLogsViewer";
+import CustomizableWidgets from "./CustomizableWidgets";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -91,6 +92,7 @@ export default function AppLayout() {
             <DataExportTool />
             <DarkModeToggle />
             <SystemLogsViewer />
+            <CustomizableWidgets />
           </div>
         </main>
       </div>
