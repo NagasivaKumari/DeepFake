@@ -23,6 +23,7 @@ import { addNumbers, isEven, generateRandomNumber } from './utils/dummyUtils';
 import { factorial, gcd, isPrime } from './utils/mathUtils';
 import { reverseString, capitalizeWords, isPalindrome } from './utils/stringUtils';
 import { login, logout, fetchUserProfile } from './api/authClient';
+import UserProfile from './components/UserProfile';
 
 const queryClient = new QueryClient();
 
@@ -48,7 +49,6 @@ const App = () => {
   const sampleString = "hello world";
   const reversed = reverseString(sampleString);
   const capitalized = capitalizeWords(sampleString);
-  const palindromeCheck = isPalindrome("madam");
 
   const handleLogin = async () => {
     try {
