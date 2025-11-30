@@ -205,3 +205,10 @@ export const calculateRelativeStandardDeviation = (numbers: number[]): number =>
     const avg = calculateAverage(numbers);
     return avg === 0 ? 0 : (stdDev / avg) * 100;
 };
+
+// Added a utility function to calculate the root mean square of an array of numbers
+export const calculateRootMeanSquare = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const squareSum = numbers.reduce((sum, num) => sum + Math.pow(num, 2), 0);
+    return Math.sqrt(squareSum / numbers.length);
+};
