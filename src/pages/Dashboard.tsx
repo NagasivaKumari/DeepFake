@@ -343,7 +343,42 @@ export default function Dashboard() {
                   <p className="text-gray-700">{activity}</p>
                 </li>
               ))
-            )}
+            }
+          </ul>
+        </div>
+      </section>
+
+      {/* User Achievements Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            User Achievements
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Celebrate your milestones and achievements on the platform
+          </p>
+        </div>
+
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <ul className="space-y-4">
+            <li className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-gray-700">Verified 100 media items</p>
+            </li>
+            <li className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-5 h-5 text-yellow-600" />
+              </div>
+              <p className="text-gray-700">Achieved a trust score of 4.5</p>
+            </li>
+            <li className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-gray-700">Endorsed by 10 entities</p>
+            </li>
           </ul>
         </div>
       </section>
