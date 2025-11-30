@@ -15,6 +15,8 @@ from pathlib import Path
 import random
 from cryptography.fernet import Fernet
 import os
+from fastapi.responses import JSONResponse
+from pyotp import TOTP
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -56,6 +58,8 @@ from pathlib import Path
 import random
 from cryptography.fernet import Fernet
 import os
+from fastapi.responses import JSONResponse
+from pyotp import TOTP
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -273,3 +277,22 @@ def reject_kyc(kyc_id: str):
     data[kyc_id] = rec
     save_kyc(data)
     return {"kyc_id": kyc_id, "status": "rejected"}
+
+# Endpoint to generate QR code for 2FA setup
+@router.get("/2fa/generate")
+def generate_2fa_qr(user_id: str):
+    secret = TOTP.random_base32()
+    totp = TOTP(secret)
+    otpauth_url = totp.provisioning_uri(name=user_id, issuer_name="DeepFake Admin")
+    return JSONResponse(content={"secret": secret, "otpauth_url": otpauth_url})
+
+# Endpoint to verify 2FA code
+@router.post("/2fa/verify")
+def verify_2fa_code(user_id: str, code: str):
+    # Retrieve the secret for the user (this should be stored securely in a database)
+    secret = "JBSWY3DPEHPK3PXP"  # Example secret; replace with actual retrieval logic
+    totp = TOTP(secret)
+    if totp.verify(code):
+        return JSONResponse(content={"verified": True})
+    else:
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
