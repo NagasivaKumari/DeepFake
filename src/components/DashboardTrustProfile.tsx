@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 const DashboardTrustProfile = () => {
   const [reputationScore, setReputationScore] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
 
   useEffect(() => {
     const fetchReputationScore = async () => {
@@ -17,6 +18,25 @@ const DashboardTrustProfile = () => {
 
     fetchReputationScore();
   }, []);
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    setUploadedFile(file);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/reputation-score", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      setReputationScore(data.score);
+    } catch (error) {
+      console.error("Failed to fetch reputation score", error);
+    }
+  };
 
   return (
     <section className="py-20 px-6">
@@ -38,12 +58,8 @@ const DashboardTrustProfile = () => {
             
             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/20">
               <div>
-                <div className="text-sm text-white/80 mb-1">Registered Items</div>
-                <div className="text-2xl font-bold">5</div>
-              </div>
-              <div>
-                <div className="text-sm text-white/80 mb-1">Endorsements</div>
-                <div className="text-2xl font-bold">12 entities</div>
+                <div className="text-sm text-white/80 mb-1">Upload Image</div>
+                <input type="file" onChange={handleFileUpload} className="text-white" />
               </div>
             </div>
             
