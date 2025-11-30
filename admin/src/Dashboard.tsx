@@ -3,6 +3,7 @@ import StatsCard from "./StatsCard"; // Importing a hypothetical StatsCard compo
 import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
 import Button from "./Button"; // Importing a hypothetical Button component
 import NotificationPanel from "./NotificationPanel"; // Importing a hypothetical NotificationPanel component
+import TaskManager from "./TaskManager"; // Importing a hypothetical TaskManager component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -33,6 +34,9 @@ const Dashboard = () => {
       </div>
       <div className="notification-panel">
         <NotificationPanel />
+      </div>
+      <div className="task-manager">
+        <TaskManager />
       </div>
     </div>
   );
