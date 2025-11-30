@@ -29,6 +29,7 @@ import AuditLogSearchFilter from "./AuditLogSearchFilter";
 import DashboardPerformanceMetrics from "./DashboardPerformanceMetrics";
 import UserSegmentation from "./UserSegmentation";
 import CustomWidgetsMarketplace from "./CustomWidgetsMarketplace";
+import AdminActivityNotifications from "./AdminActivityNotifications";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -124,6 +125,7 @@ export default function AppLayout() {
               <DashboardPerformanceMetrics />
               <UserSegmentation />
               <CustomWidgetsMarketplace />
+              <AdminActivityNotifications />
             </div>
           </main>
         </div>
