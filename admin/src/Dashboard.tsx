@@ -2,6 +2,7 @@ import React from "react";
 import StatsCard from "./StatsCard"; // Importing a hypothetical StatsCard component
 import RecentActivities from "./RecentActivities"; // Importing a hypothetical RecentActivities component
 import Button from "./Button"; // Importing a hypothetical Button component
+import NotificationPanel from "./NotificationPanel"; // Importing a hypothetical NotificationPanel component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -29,6 +30,9 @@ const Dashboard = () => {
         <Button label="Add User" onClick={() => console.log("Add User clicked")} />
         <Button label="Approve Media" onClick={() => console.log("Approve Media clicked")} />
         <Button label="View Reports" onClick={() => console.log("View Reports clicked")} />
+      </div>
+      <div className="notification-panel">
+        <NotificationPanel />
       </div>
     </div>
   );
