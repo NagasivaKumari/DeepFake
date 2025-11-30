@@ -21,6 +21,7 @@ import AuditLogExport from "./AuditLogExport";
 import CustomThemes from "./CustomThemes";
 import MultiLanguageSupport from "./MultiLanguageSupport";
 import AdminCollaborationTools from "./AdminCollaborationTools";
+import ScheduledReports from "./ScheduledReports";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -108,6 +109,7 @@ export default function AppLayout() {
               <CustomThemes />
               <MultiLanguageSupport />
               <AdminCollaborationTools />
+              <ScheduledReports />
             </div>
           </main>
         </div>
@@ -138,6 +140,10 @@ export default function AppLayout() {
           <Route
             path="/admin-collaboration-tools"
             element={<AdminCollaborationTools />}
+          />
+          <Route
+            path="/scheduled-reports"
+            element={<ScheduledReports />}
           />
         </Routes>
       </div>
