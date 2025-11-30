@@ -44,6 +44,7 @@ import ExternalServicesIntegration from "./ExternalServicesIntegration";
 import TwoWayCommunication from "./TwoWayCommunication";
 import AlgorandSubscription from "./AlgorandSubscription";
 import CustomizableDashboardLayout from "./CustomizableDashboardLayout";
+import UserFeedbackCollection from "./UserFeedbackCollection";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -216,6 +217,7 @@ export default function AppLayout() {
         <ExternalServicesIntegration />
         <TwoWayCommunication />
         <AlgorandSubscription />
+        <UserFeedbackCollection />
       </div>
     </Router>
   );
