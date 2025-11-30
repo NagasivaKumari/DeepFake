@@ -30,6 +30,7 @@ import DashboardPerformanceMetrics from "./DashboardPerformanceMetrics";
 import UserSegmentation from "./UserSegmentation";
 import CustomWidgetsMarketplace from "./CustomWidgetsMarketplace";
 import AdminActivityNotifications from "./AdminActivityNotifications";
+import DataVisualizationTools from "./DataVisualizationTools";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -126,6 +127,7 @@ export default function AppLayout() {
               <UserSegmentation />
               <CustomWidgetsMarketplace />
               <AdminActivityNotifications />
+              <DataVisualizationTools />
             </div>
           </main>
         </div>
