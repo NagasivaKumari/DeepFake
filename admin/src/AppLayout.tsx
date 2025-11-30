@@ -8,6 +8,7 @@ import UserProfile from "./UserProfile";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminRoleManagement from "./AdminRoleManagement";
 import AdminActivityDashboard from "./AdminActivityDashboard";
+import RealTimeNotifications from "./RealTimeNotifications";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -81,6 +82,7 @@ export default function AppLayout() {
             <AdminAnalytics />
             <AdminRoleManagement />
             <AdminActivityDashboard />
+            <RealTimeNotifications />
           </div>
         </main>
       </div>
