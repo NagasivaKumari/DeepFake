@@ -19,4 +19,9 @@ export default defineConfig({
   '/ai': 'http://localhost:8000',
     },
   },
+  build: {
+    rollupOptions: {
+      external: [], // Exclude server-side files
+    },
+  },
 });
