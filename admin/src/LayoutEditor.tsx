@@ -1,14 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const LayoutEditor = () => {
+  const [widgets, setWidgets] = useState([
+    { id: '1', content: 'Widget 1' },
+    { id: '2', content: 'Widget 2' },
+    { id: '3', content: 'Widget 3' },
+  ]);
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const reorderedWidgets = Array.from(widgets);
+    const [removed] = reorderedWidgets.splice(result.source.index, 1);
+    reorderedWidgets.splice(result.destination.index, 0, removed);
+
+    setWidgets(reorderedWidgets);
+  };
+
   return (
     <div className="layout-editor">
       <h2>Layout Editor</h2>
       <p>Drag and drop widgets to customize your dashboard layout.</p>
-      {/* Placeholder for drag-and-drop area */}
-      <div className="widget-area" style={{ border: '1px dashed #ccc', padding: '20px' }}>
-        <p>Drop widgets here</p>
-      </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="widgets">
+          {(provided) => (
+            <div
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              style={{ border: '1px dashed #ccc', padding: '20px' }}
+            >
+              {widgets.map((widget, index) => (
+                <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{
+                        padding: '10px',
+                        margin: '10px 0',
+                        background: '#f9f9f9',
+                        border: '1px solid #ddd',
+                        ...provided.draggableProps.style,
+                      }}
+                    >
+                      {widget.content}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </div>
   );
 };
