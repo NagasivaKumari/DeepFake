@@ -9,12 +9,13 @@ import AdminAnalytics from "./AdminAnalytics";
 import AdminRoleManagement from "./AdminRoleManagement";
 import AdminActivityDashboard from "./AdminActivityDashboard";
 import RealTimeNotifications from "./RealTimeNotifications";
+import DataExportTool from "./DataExportTool";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   minHeight: "100vh",
-  background: "#f5f7fa"
+  background: "#f5f7fa",
 };
 const mainRowStyle: React.CSSProperties = {
   display: "flex",
@@ -26,7 +27,7 @@ const contentStyle: React.CSSProperties = {
   background: "#f9fbfd",
   minHeight: 0,
   overflow: "auto",
-  padding: "40px 0"
+  padding: "40px 0",
 };
 
 export default function AppLayout() {
@@ -34,8 +35,10 @@ export default function AppLayout() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value);
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value);
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setEmail(e.target.value);
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setPassword(e.target.value);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,6 +86,7 @@ export default function AppLayout() {
             <AdminRoleManagement />
             <AdminActivityDashboard />
             <RealTimeNotifications />
+            <DataExportTool />
           </div>
         </main>
       </div>
@@ -92,8 +96,16 @@ export default function AppLayout() {
         <AdvancedSettings />
         <UserProfile />
       </section>
-      <footer style={{ textAlign: "center", padding: "20px 0", background: "#fff" }}>
-        <p>&copy; {new Date().getFullYear()} Admin Panel. All rights reserved.</p>
+      <footer
+        style={{
+          textAlign: "center",
+          padding: "20px 0",
+          background: "#fff",
+        }}
+      >
+        <p>
+          &copy; {new Date().getFullYear()} Admin Panel. All rights reserved.
+        </p>
       </footer>
     </div>
   );
