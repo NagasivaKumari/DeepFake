@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import Notifications from "./Notifications";
+import ActivityLog from "./ActivityLog";
+import AdvancedSettings from "./AdvancedSettings";
+import UserProfile from "./UserProfile";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -74,6 +78,12 @@ export default function AppLayout() {
           </div>
         </main>
       </div>
+      <section>
+        <Notifications />
+        <ActivityLog />
+        <AdvancedSettings />
+        <UserProfile />
+      </section>
       <footer style={{ textAlign: "center", padding: "20px 0", background: "#fff" }}>
         <p>&copy; {new Date().getFullYear()} Admin Panel. All rights reserved.</p>
       </footer>
