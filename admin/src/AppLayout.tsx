@@ -34,6 +34,7 @@ import DataVisualizationTools from "./DataVisualizationTools";
 import ContentModerationTools from "./ContentModerationTools";
 import IntegrationWithExternalServices from "./IntegrationWithExternalServices";
 import AdminOnboardingGuide from "./AdminOnboardingGuide";
+import AccessLogs from "./AccessLogs";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -134,6 +135,7 @@ export default function AppLayout() {
               <ContentModerationTools />
               <IntegrationWithExternalServices />
               <AdminOnboardingGuide />
+              <AccessLogs />
             </div>
           </main>
         </div>
