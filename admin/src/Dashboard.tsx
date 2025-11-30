@@ -25,6 +25,7 @@ import AdminNotificationSettings from "./AdminNotificationSettings"; // Importin
 import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
 import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
 import { sendSlackNotification } from "../utils/slackNotifications";
+import { triggerZapierWebhook } from "../utils/zapierIntegration";
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -56,7 +57,13 @@ const Dashboard = () => {
             await sendSlackNotification("A new user was added from the admin dashboard.");
           }}
         />
-        <Button label="Approve Media" onClick={() => console.log("Approve Media clicked")} />
+        <Button
+          label="Approve Media"
+          onClick={async () => {
+            console.log("Approve Media clicked");
+            await triggerZapierWebhook("approve-media", { mediaId: "12345" });
+          }}
+        />
         <Button label="View Reports" onClick={() => console.log("View Reports clicked")} />
       </div>
       <div className="notification-panel">
