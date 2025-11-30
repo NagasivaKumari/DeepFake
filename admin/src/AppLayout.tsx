@@ -38,6 +38,7 @@ import AccessLogs from "./AccessLogs";
 import CustomizableEmailTemplates from "./CustomizableEmailTemplates";
 import DarkModeScheduler from "./DarkModeScheduler";
 import GlobalSearch from "./GlobalSearch";
+import AdminRoleAnalytics from "./AdminRoleAnalytics";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -140,6 +141,7 @@ export default function AppLayout() {
               <AdminOnboardingGuide />
               <AccessLogs />
               <CustomizableEmailTemplates />
+              <AdminRoleAnalytics />
             </div>
           </main>
         </div>
