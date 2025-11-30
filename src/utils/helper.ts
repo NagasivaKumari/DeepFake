@@ -9,3 +9,7 @@ export const formatDate = (date: Date): string => {
 export const calculateSum = (numbers: number[]): number => {
     return numbers.reduce((sum, num) => sum + num, 0);
 };
+
+export const findMax = (numbers: number[]): number => {
+    return Math.max(...numbers);
+};
