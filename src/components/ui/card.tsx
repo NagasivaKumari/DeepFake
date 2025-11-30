@@ -26,4 +26,10 @@ const CardFooter = ({ children, className, ...props }) => (
   </div>
 );
 
-export { Card, CardHeader, CardContent, CardFooter };
+const CardTitle = ({ children, className, ...props }) => (
+  <h2 className={cn("text-lg font-semibold", className)} {...props}>
+    {children}
+  </h2>
+);
+
+export { Card, CardHeader, CardContent, CardFooter, CardTitle };

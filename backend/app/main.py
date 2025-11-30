@@ -12,6 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.security import OAuth2PasswordBearer
+from .websocket import app as websocket_app
 
 app = FastAPI(title="ProofChain Backend")
 
@@ -73,6 +74,9 @@ app.include_router(registrations.router)
 app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(ai_generate.router)
+
+# Include WebSocket routes
+app.mount("/websocket", websocket_app)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

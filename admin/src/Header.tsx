@@ -75,8 +75,6 @@ const Header: React.FC = () => {
           </ul>
         )}
       </div>
-      <HeaderIcon icon={<SomeIcon />} tooltip="Home" />
-      <HeaderIcon icon={<AnotherIcon />} tooltip="Settings" />
     </header>
   );
 };
