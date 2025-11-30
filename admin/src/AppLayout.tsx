@@ -47,6 +47,7 @@ import CustomizableDashboardLayout from "./CustomizableDashboardLayout";
 import UserFeedbackCollection from "./UserFeedbackCollection";
 import RoleBasedAccessControl from "./RoleBasedAccessControl";
 import MultiTenantSupport from "./MultiTenantSupport";
+import CustomReports from "./CustomReports";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -155,6 +156,7 @@ export default function AppLayout() {
               <CustomizableDashboardLayout />
               <RoleBasedAccessControl />
               <MultiTenantSupport />
+              <CustomReports />
             </div>
           </main>
         </div>
