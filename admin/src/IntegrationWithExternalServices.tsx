@@ -4,7 +4,7 @@ const IntegrationWithExternalServices = () => {
     return (
         <div className="integration-with-external-services">
             <h1>Integration with External Services</h1>
-            <p>Connect your dashboard with external tools like Slack, Zapier, or Google Analytics.</p>
+            <p>Connect your dashboard with external tools like Zapier or Google Analytics.</p>
             {/* Add integration logic and UI here */}
         </div>
     );
