@@ -444,6 +444,33 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
+
+      {/* Upcoming Features Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Upcoming Features
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Get a sneak peek at what's coming next to our platform
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Advanced Analytics Dashboard</h3>
+            <p className="text-gray-700">Gain deeper insights into your content's performance with our upcoming analytics tools.</p>
+          </div>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Mobile App Integration</h3>
+            <p className="text-gray-700">Manage and verify your content on the go with our new mobile app.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Frequently Asked Questions
+          </h2>
