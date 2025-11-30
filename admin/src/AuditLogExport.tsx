@@ -5,6 +5,7 @@ const AuditLogExport = () => {
     { id: 1, action: 'Login', user: 'John Doe', timestamp: '2025-11-30 10:00' },
     { id: 2, action: 'Update Profile', user: 'Jane Smith', timestamp: '2025-11-30 10:15' },
   ]);
+  const [format, setFormat] = useState('CSV');
 
   const exportLogs = (format) => {
     let content = '';
@@ -32,8 +33,29 @@ const AuditLogExport = () => {
   return (
     <div>
       <h2>Audit Log Export</h2>
-      <button onClick={() => exportLogs('JSON')}>Export as JSON</button>
-      <button onClick={() => exportLogs('CSV')}>Export as CSV</button>
+      <div>
+        <label>
+          <input
+            type="radio"
+            name="format"
+            value="CSV"
+            checked={format === 'CSV'}
+            onChange={(e) => setFormat(e.target.value)}
+          />
+          CSV
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="format"
+            value="JSON"
+            checked={format === 'JSON'}
+            onChange={(e) => setFormat(e.target.value)}
+          />
+          JSON
+        </label>
+      </div>
+      <button onClick={() => exportLogs(format)}>Export Logs</button>
       <h3>Logs</h3>
       <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>

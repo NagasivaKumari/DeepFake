@@ -147,6 +147,7 @@ export default function AppLayout() {
               <CustomizableEmailTemplates />
               <AdminRoleAnalytics />
               <DashboardPerformanceMetrics />
+              <AuditLogExport />
             </div>
           </main>
         </div>
