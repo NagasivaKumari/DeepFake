@@ -173,3 +173,10 @@ export const calculateCoefficientOfVariation = (numbers: number[]): number => {
     const stdDev = calculateStandardDeviation(numbers);
     return avg === 0 ? 0 : (stdDev / avg) * 100;
 };
+
+// Added a utility function to calculate the mean absolute deviation of an array of numbers
+export const calculateMeanAbsoluteDeviation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const avg = calculateAverage(numbers);
+    return numbers.reduce((sum, num) => sum + Math.abs(num - avg), 0) / numbers.length;
+};
