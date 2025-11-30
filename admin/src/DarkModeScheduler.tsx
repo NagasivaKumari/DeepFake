@@ -8,11 +8,16 @@ const DarkModeScheduler = () => {
         setIsDarkMode(hour >= 18 || hour < 6); // Enable dark mode between 6 PM and 6 AM
     }, []);
 
+    // Add toggle functionality for manual override
+    const toggleMode = () => {
+        setIsDarkMode((prevMode) => !prevMode);
+    };
+
     return (
         <div className={`dark-mode-scheduler ${isDarkMode ? 'dark' : 'light'}`}>
             <h1>Dark Mode Scheduler</h1>
             <p>The dashboard is currently in {isDarkMode ? 'Dark' : 'Light'} mode.</p>
-            {/* Add toggle or customization options here */}
+            <button onClick={toggleMode}>Toggle Mode</button>
         </div>
     );
 };
