@@ -53,3 +53,10 @@ export const calculateProduct = (numbers: number[]): number => {
     if (numbers.length === 0) return 1;
     return numbers.reduce((product, num) => product * num, 1);
 };
+
+// Added a utility function to calculate the geometric mean of an array of numbers
+export const calculateGeometricMean = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const product = calculateProduct(numbers);
+    return Math.pow(product, 1 / numbers.length);
+};
