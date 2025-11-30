@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 
-const themes = [
+const predefinedThemes = [
   { name: 'Light', className: 'theme-light' },
   { name: 'Dark', className: 'theme-dark' },
   { name: 'High Contrast', className: 'theme-high-contrast' },
 ];
 
 const ThemeSelector = () => {
-  const [currentTheme, setCurrentTheme] = useState(themes[0].className);
+  const [currentTheme, setCurrentTheme] = useState(predefinedThemes[0].className);
 
   const handleThemeChange = (themeClass) => {
     setCurrentTheme(themeClass);
@@ -18,7 +18,7 @@ const ThemeSelector = () => {
     <div className="theme-selector">
       <h3>Select Theme</h3>
       <ul>
-        {themes.map((theme) => (
+        {predefinedThemes.map((theme) => (
           <li key={theme.className}>
             <button
               onClick={() => handleThemeChange(theme.className)}
