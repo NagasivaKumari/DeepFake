@@ -15,6 +15,7 @@ import SystemLogsViewer from "./SystemLogsViewer";
 import CustomizableWidgets from "./CustomizableWidgets";
 import TwoFactorAuthentication from "./TwoFactorAuthentication";
 import UserFeedbackSupport from "./UserFeedbackSupport";
+import AdvancedAnalyticsDashboard from "./AdvancedAnalyticsDashboard";
 
 const layoutStyle: React.CSSProperties = {
   display: "flex",
@@ -97,6 +98,7 @@ export default function AppLayout() {
             <CustomizableWidgets />
             <TwoFactorAuthentication />
             <UserFeedbackSupport />
+            <AdvancedAnalyticsDashboard />
           </div>
         </main>
       </div>
