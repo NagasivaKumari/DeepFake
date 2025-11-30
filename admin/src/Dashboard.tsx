@@ -21,6 +21,9 @@ import AdminResourceUsage from "./AdminResourceUsage"; // Importing a hypothetic
 import AdminSecurityPanel from "./AdminSecurityPanel"; // Importing a hypothetical AdminSecurityPanel component
 import AdminAdvancedAnalytics from "./AdminAdvancedAnalytics"; // Importing a hypothetical AdminAdvancedAnalytics component
 import AdminUserManagement from "./AdminUserManagement"; // Importing a hypothetical AdminUserManagement component
+import AdminNotificationSettings from "./AdminNotificationSettings"; // Importing a hypothetical AdminNotificationSettings component
+import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
+import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
 
 const Dashboard = () => {
   // Added a section to display admin statistics
@@ -105,6 +108,15 @@ const Dashboard = () => {
       </div>
       <div className="admin-user-management">
         <AdminUserManagement />
+      </div>
+      <div className="admin-notification-settings">
+        <AdminNotificationSettings />
+      </div>
+      <div className="admin-theme-settings">
+        <AdminThemeSettings />
+      </div>
+      <div className="admin-data-backup">
+        <AdminDataBackup />
       </div>
     </div>
   );
