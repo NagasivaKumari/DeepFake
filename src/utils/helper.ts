@@ -180,3 +180,12 @@ export const calculateMeanAbsoluteDeviation = (numbers: number[]): number => {
     const avg = calculateAverage(numbers);
     return numbers.reduce((sum, num) => sum + Math.abs(num - avg), 0) / numbers.length;
 };
+
+// Added a utility function to calculate the geometric standard deviation of an array of numbers
+export const calculateGeometricStandardDeviation = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const logNumbers = numbers.map(num => Math.log(num));
+    const logMean = calculateAverage(logNumbers);
+    const variance = logNumbers.reduce((sum, logNum) => sum + Math.pow(logNum - logMean, 2), 0) / numbers.length;
+    return Math.exp(Math.sqrt(variance));
+};
