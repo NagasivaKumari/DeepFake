@@ -12,6 +12,7 @@ import AnalyticsDashboard from "./AnalyticsDashboard";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useActivityLogs } from "./hooks/useActivityLogs";
 import './i18n';
+import UserManagement from './UserManagement';
 
 // Use React.memo to prevent unnecessary re-renders of AppLayout
 const MemoizedAppLayout = React.memo(AppLayout);
@@ -60,6 +61,7 @@ const App = () => {
 					</ul>
 				</div>
 				<AnalyticsDashboard />
+				<UserManagement />
 			</MemoizedAppLayout>
 		</BrowserRouter>
 	);
