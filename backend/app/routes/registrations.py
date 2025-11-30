@@ -14,22 +14,7 @@ def load_media():
     if not MEDIA_FILE.exists():
         return []
     try:
-        media = json.loads(MEDIA_FILE.read_text())
-        # Normalize explorer URLs in-memory: if an algo_tx is present, prefer the Algokit URL
-        def algokit_url(txn: str) -> str:
-            if not txn:
-                return None
-            return f"https://lora.algokit.io/testnet/transaction/{txn}"
-
-        for item in media:
-            try:
-                tx = item.get("algo_tx")
-                if tx:
-                    item["algo_explorer_url"] = algokit_url(tx)
-            except Exception:
-                # ignore individual item errors and continue
-                pass
-        return media
+        return json.loads(MEDIA_FILE.read_text())
     except Exception:
         return []
 
@@ -42,17 +27,18 @@ def _gateway_base() -> str:
         return f"https://{d}"
     return "https://gateway.pinata.cloud"
 
-
 def _cid_available(cid: str) -> tuple[bool, int | None]:
     if not cid:
         return False, None
     url = f"{_gateway_base()}/ipfs/{cid}"
     try:
-        r = requests.head(url, timeout=8)
+        r = requests.head(url, timeout=8)  # Added timeout
         status = r.status_code
+    except requests.exceptions.Timeout:
+        return False, None
     except Exception:
         try:
-            r = requests.get(url, headers={"Range": "bytes=0-0"}, timeout=10)
+            r = requests.get(url, headers={"Range": "bytes=0-0"}, timeout=10)  # Added timeout
             status = r.status_code
         except Exception:
             return False, None
@@ -87,11 +73,9 @@ def list_registrations(availability: str = Query("filter", description="none=don
                 it["cid_available"] = bool(ok)
                 result.append(it)
         except Exception:
-            # On error, drop the item when filtering; mark false otherwise
             if availability == "mark":
                 it["cid_available"] = False
                 result.append(it)
-            # if filtering, skip
             continue
     return result
 

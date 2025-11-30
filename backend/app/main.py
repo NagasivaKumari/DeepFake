@@ -56,26 +56,35 @@ async def rate_limit_exceeded_handler(request, exc):
         content={"detail": "Rate limit exceeded. Please try again later."},
     )
 
+# Updated CORS Middleware to include 127.0.0.1:8000
 app.add_middleware(
     CORSMiddleware,
-    # Allow common local dev origins. Add any additional dev origins (e.g. Vite at :5175) as needed.
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:8080",
         "http://localhost:5173",
         "http://localhost:5175",
         "http://127.0.0.1:5175",
+        "http://127.0.0.1:8000",  # Added for local development
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Add HTTPS enforcement middleware
-app.add_middleware(HTTPSRedirectMiddleware)
+# Updated TrustedHostMiddleware to include localhost and 127.0.0.1
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[
+        "example.com",
+        "*.example.com",
+        "127.0.0.1",  # Added for local development
+        "localhost",   # Added for local development
+    ],
+)
 
-# Restrict allowed hosts
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com", "*.example.com"])
+# Disabled HTTPSRedirectMiddleware for local development
+# app.add_middleware(HTTPSRedirectMiddleware)
 
 app.include_router(registrations.router)
 app.include_router(media.router)

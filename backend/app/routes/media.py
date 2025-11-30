@@ -635,7 +635,7 @@ def register_media(payload: RegisterRequest = None, file: UploadFile = None):
         # Read image bytes from the uploaded file
         image_bytes = file.file.read()
         # Generate unique hash for the image
-        unique_hash = generate_unique_hash(image_bytes)
+        unique_hash = hashlib.sha256(image_bytes).hexdigest()
         payload.sha256_hash = unique_hash
 
         # Proceed with registration logic if KYC is verified
@@ -1761,7 +1761,7 @@ def recompute_reg_key(body: DeriveKeysRequest):
     """
     try:
         sha_hex = body.sha256_hash or ''
-        h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha256_hash
+        h_hex = sha_hex[2:] if sha_hex.startswith('0x') else sha_hex
         H = bytes.fromhex(h_hex)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid sha256_hash: {e}")

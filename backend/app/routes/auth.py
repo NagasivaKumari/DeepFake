@@ -29,9 +29,10 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:
     raise RuntimeError("ENCRYPTION_KEY environment variable is not set.")
 
-encryptor = Fernet(ENCRYPTION_KEY)
-
-from fastapi import Query
+try:
+    encryptor = Fernet(ENCRYPTION_KEY)
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize encryption: {e}")
 
 @router.delete("/admin/kyc/{kyc_id}")
 def delete_kyc(kyc_id: str):
@@ -72,9 +73,13 @@ ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:
     raise RuntimeError("ENCRYPTION_KEY environment variable is not set.")
 
-encryptor = Fernet(ENCRYPTION_KEY)
+try:
+    encryptor = Fernet(ENCRYPTION_KEY)
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize encryption: {e}")
 
 from fastapi import Query
+
 @router.get("/kyc/status")
 def kyc_status(address: str = Query(...)):
     data = load_kyc()
@@ -113,8 +118,7 @@ def load_kyc():
         decrypted_data = encryptor.decrypt(encrypted_data.encode()).decode()
         return json.loads(decrypted_data)
     except Exception as e:
-        print(f"Failed to load KYC data: {e}")
-        return {}
+        raise RuntimeError(f"Failed to load KYC data: {e}")
 
 def save_kyc(data):
     try:
@@ -122,7 +126,7 @@ def save_kyc(data):
         encrypted_data = encryptor.encrypt(json_data.encode()).decode()
         KYC_FILE.write_text(encrypted_data)
     except Exception as e:
-        print(f"Failed to save KYC data: {e}")
+        raise RuntimeError(f"Failed to save KYC data: {e}")
 
 @router.post("/kyc/start", response_model=KYCRecord)
 def start_kyc(payload: KYCStartRequest, request: Request):

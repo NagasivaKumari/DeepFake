@@ -24,7 +24,6 @@ import AdminUserManagement from "./AdminUserManagement"; // Importing a hypothet
 import AdminNotificationSettings from "./AdminNotificationSettings"; // Importing a hypothetical AdminNotificationSettings component
 import AdminThemeSettings from "./AdminThemeSettings"; // Importing a hypothetical AdminThemeSettings component
 import AdminDataBackup from "./AdminDataBackup"; // Importing a hypothetical AdminDataBackup component
-import { sendSlackNotification } from "../../src/utils/slackNotifications";
 import { triggerZapierWebhook } from "../../src/utils/zapierIntegration";
 
 const Dashboard = () => {
@@ -54,7 +53,6 @@ const Dashboard = () => {
           label="Add User"
           onClick={async () => {
             console.log("Add User clicked");
-            await sendSlackNotification("A new user was added from the admin dashboard.");
           }}
         />
         <Button

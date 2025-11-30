@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { RoleProvider } from "./RoleContext";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
@@ -129,166 +128,117 @@ export default function AppLayout() {
   return (
     <ErrorBoundary>
       <RoleProvider>
-        <Router>
-          <div
-            style={layoutStyle}
-            className={`app-layout ${darkMode ? "dark-mode" : ""}`}
-            role="main"
-          >
-            <Header />
-            {isBannerVisible && (
-              <div className="notification-banner">
-                <p>Welcome to the Admin Panel! Check out the new features.</p>
-                <button onClick={() => setBannerVisible(false)}>Dismiss</button>
-              </div>
-            )}
-            <div style={mainRowStyle}>
-              <Sidebar />
-              <main style={contentStyle}>
-                <div>
-                  {loading && <LoadingSpinner />}
-                  <h1>Welcome to the Admin Panel</h1>
-                  <p>Manage your application here.</p>
-                  <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
-                    <div>
-                      <label>Email:</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={handleEmailChange}
-                        placeholder="Enter new email"
-                        style={touchInputStyle}
-                      />
-                    </div>
-                    <div>
-                      <label>Password:</label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={handlePasswordChange}
-                        placeholder="Enter new password"
-                        style={touchInputStyle}
-                      />
-                    </div>
-                    <button type="submit" style={touchFriendlyStyle}>
-                      Update
-                    </button>
-                  </form>
-                  <AdminAnalytics />
-                  <AdminRoleManagement />
-                  <AdminActivityDashboard />
-                  <RealTimeNotifications />
-                  <DataExportTool />
-                  <DarkModeToggle />
-                  <SystemLogsViewer />
-                  <CustomizableWidgets />
-                  <TwoFactorAuthentication />
-                  <UserFeedbackSupport />
-                  <AdvancedAnalyticsDashboard />
-                  <CustomThemes />
-                  <MultiLanguageSupport />
-                  <AdminCollaborationTools />
-                  <ScheduledReports />
-                  <AIPoweredInsights />
-                  <CustomizableNotifications />
-                  <RoleBasedDashboardViews role="admin" />
-                  <AuditLogSearchFilter />
-                  <DashboardPerformanceMetrics />
-                  <UserSegmentation />
-                  <CustomWidgetsMarketplace />
-                  <AdminActivityNotifications />
-                  <DataVisualizationTools />
-                  <ContentModerationTools />
-                  <IntegrationWithExternalServices />
-                  <AdminOnboardingGuide />
-                  <AccessLogs />
-                  <CustomizableEmailTemplates />
-                  <AdminRoleAnalytics />
-                  <DashboardPerformanceMetrics />
-                  <AuditLogExport />
-                  <CustomizableDashboardLayout />
-                  <RoleBasedAccessControl />
-                  <MultiTenantSupport />
-                  <CustomReports />
-                  <PaymentGatewayIntegration />
-                  <UserActivityTracker />
-                  <NotificationSettings />
-                  <AdvancedSearch />
-                  <ExportData />
-                  <RealTimeAnalytics />
-                  <LanguageSelector />
-                  <LayoutEditor />
-                  <AIInsightsPlaceholder />
-                  <MockAIModel />
-                </div>
-              </main>
+        <div
+          style={layoutStyle}
+          className={`app-layout ${darkMode ? "dark-mode" : ""}`}
+          role="main"
+        >
+          <Header />
+          {isBannerVisible && (
+            <div className="notification-banner">
+              <p>Welcome to the Admin Panel! Check out the new features.</p>
+              <button onClick={() => setBannerVisible(false)}>Dismiss</button>
             </div>
-            <section>
-              <Notifications />
-              <ActivityLog />
-              <AdvancedSettings />
-              <UserProfile />
-            </section>
-            <footer
-              style={{
-                textAlign: "center",
-                padding: "20px 0",
-                background: "#fff",
-              }}
-            >
-              <p>
-                &copy; {new Date().getFullYear()} Admin Panel. All rights reserved.
-              </p>
-            </footer>
-            <Routes>
-              <Route path="/audit-log-export" element={<AuditLogExport />} />
-              <Route path="/custom-themes" element={<CustomThemes />} />
-              <Route
-                path="/multi-language-support"
-                element={<MultiLanguageSupport />}
-              />
-              <Route
-                path="/admin-collaboration-tools"
-                element={<AdminCollaborationTools />}
-              />
-              <Route
-                path="/scheduled-reports"
-                element={<ScheduledReports />}
-              />
-              <Route
-                path="/ai-powered-insights"
-                element={<AIPoweredInsights />}
-              />
-              <Route
-                path="/customizable-notifications"
-                element={<CustomizableNotifications />}
-              />
-              <Route
-                path="/role-based-dashboard-views"
-                element={<RoleBasedDashboardViews role="admin" />}
-              />
-              <Route
-                path="/audit-log-search-filter"
-                element={<AuditLogSearchFilter />}
-              />
-              <Route
-                path="/dashboard-performance-metrics"
-                element={<DashboardPerformanceMetrics />}
-              />
-              <Route
-                path="/user-segmentation"
-                element={<UserSegmentation />}
-              />
-            </Routes>
-            <DarkModeScheduler />
-            <GlobalSearch />
-            <TwoWayUserCommunication />
-            <ExternalServicesIntegration />
-            <TwoWayCommunication />
-            <AlgorandSubscription />
-            <UserFeedbackCollection />
+          )}
+          <div style={mainRowStyle}>
+            <Sidebar />
+            <main style={contentStyle}>
+              <div>
+                {loading && <LoadingSpinner />}
+                <h1>Welcome to the Admin Panel</h1>
+                <p>Manage your application here.</p>
+                <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
+                  <div>
+                    <label>Email:</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={handleEmailChange}
+                      placeholder="Enter new email"
+                      style={touchInputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label>Password:</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={handlePasswordChange}
+                      placeholder="Enter new password"
+                      style={touchInputStyle}
+                    />
+                  </div>
+                  <button type="submit" style={touchFriendlyStyle}>
+                    Update
+                  </button>
+                </form>
+                <AdminAnalytics />
+                <AdminRoleManagement />
+                <AdminActivityDashboard />
+                <RealTimeNotifications />
+                <DataExportTool />
+                <DarkModeToggle />
+                <SystemLogsViewer />
+                <CustomizableWidgets />
+                <TwoFactorAuthentication />
+                <UserFeedbackSupport />
+                <AdvancedAnalyticsDashboard />
+                <CustomThemes />
+                <MultiLanguageSupport />
+                <AdminCollaborationTools />
+                <ScheduledReports />
+                <AIPoweredInsights />
+                <CustomizableNotifications />
+                <RoleBasedDashboardViews role="admin" />
+                <AuditLogSearchFilter />
+                <DashboardPerformanceMetrics />
+                <UserSegmentation />
+                <CustomWidgetsMarketplace />
+                <AdminActivityNotifications />
+                <DataVisualizationTools />
+                <ContentModerationTools />
+                <IntegrationWithExternalServices />
+                <AdminOnboardingGuide />
+                <AccessLogs />
+                <CustomizableEmailTemplates />
+                <AdminRoleAnalytics />
+                <DashboardPerformanceMetrics />
+                <AuditLogExport />
+                <CustomizableDashboardLayout />
+                <RoleBasedAccessControl />
+                <MultiTenantSupport />
+                <CustomReports />
+                <PaymentGatewayIntegration />
+                <UserActivityTracker />
+                <NotificationSettings />
+                <AdvancedSearch />
+                <ExportData />
+                <RealTimeAnalytics />
+                <LanguageSelector />
+                <LayoutEditor />
+                <AIInsightsPlaceholder />
+                <MockAIModel />
+              </div>
+            </main>
           </div>
-        </Router>
+          <section>
+            <Notifications />
+            <ActivityLog />
+            <AdvancedSettings />
+            <UserProfile />
+          </section>
+          <footer
+            style={{
+              textAlign: "center",
+              padding: "20px 0",
+              background: "#fff",
+            }}
+          >
+            <p>
+              &copy; {new Date().getFullYear()} Admin Panel. All rights reserved.
+            </p>
+          </footer>
+        </div>
       </RoleProvider>
     </ErrorBoundary>
   );
